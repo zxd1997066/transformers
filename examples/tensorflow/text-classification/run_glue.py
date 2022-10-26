@@ -20,6 +20,8 @@ import json
 import logging
 import os
 import sys
+import time
+import math
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -130,6 +132,8 @@ class DataTrainingArguments:
             )
         },
     )
+    num_iter: Optional[int] = field(default=None, metadata={ "help": ("num_iter")})
+    precision: Optional[str] = field(default='float32', metadata={ "help": ("num_iter")})
 
     def __post_init__(self):
         self.task_name = self.task_name.lower()
@@ -191,6 +195,13 @@ def main():
         model_args, data_args, training_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
     else:
         model_args, data_args, training_args = parser.parse_args_into_dataclasses()
+
+    # mixed precision
+    if data_args.precision == "bfloat16":
+        from tensorflow.keras import mixed_precision
+        policy = mixed_precision.Policy('mixed_bfloat16')
+        mixed_precision.set_global_policy(policy)
+        print("---- Use AMP")
 
     # Sending telemetry. Tracking the example usage helps us better allocate resources to maintain them. The
     # information sent is the one passed as arguments along with your Python/PyTorch versions.
@@ -520,7 +531,17 @@ def main():
                 raw_datasets = [datasets["validation"]]
 
             for raw_dataset, tf_dataset, task in zip(raw_datasets, tf_datasets, tasks):
-                eval_predictions = model.predict(tf_dataset)
+                if data_args.num_iter is not None and data_args.num_iter > len(tf_dataset):
+                    data_args.num_iter = len(tf_dataset)
+                # warmup
+                eval_predictions = model.predict(tf_dataset, steps=math.ceil(data_args.num_iter/10))
+                # forward
+                elapsed = time.time()
+                eval_predictions = model.predict(tf_dataset, steps=data_args.num_iter)
+                elapsed = time.time() - elapsed
+                throughput = data_args.num_iter * training_args.per_device_eval_batch_size / elapsed
+                print("inference Throughput:\t {:.2f} samples/s".format(throughput))
+                exit()
                 eval_metrics = compute_metrics(eval_predictions, raw_dataset["label"])
                 print(f"Evaluation metrics ({task}):")
                 print(eval_metrics)
