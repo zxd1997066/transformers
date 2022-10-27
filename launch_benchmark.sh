@@ -30,6 +30,16 @@ function main {
     set_environment
 
     # requirements
+    if [ "${EXAMPLE_NAME}" == "" ] || [ "${ARCH_NAME}" == "" ] || \
+       [ "${TASK_NAME}" == "" ];then
+        set +x
+        echo "[ERROR] Please set EXAMPLE_NAME TASK_NAME and ARCH_NAME before launch"
+        echo "  export EXAMPLE_NAME=/example/to//use"
+        echo "  export TASK_NAME=/dataset/to/use"
+        echo "  export ARCH_NAME=/model/name"
+        exit 1
+        set -x
+    fi
     pip uninstall -y transformers tokenizers
     python setup.py install
 
@@ -41,8 +51,8 @@ function main {
     for model_name in ${model_name_list[@]}
     do
         # cache
-        python examples/tensorflow/text-classification/run_glue.py \
-            --model_name_or_path $model_name \
+        python examples/tensorflow/${EXAMPLE_NAME}/run_glue.py \
+            --model_name_or_path $ARCH_NAME --task_name ${TASK_NAME} \
             --do_eval  --output_dir output --per_device_eval_batch_size 1 \
             --num_iter 3 --precision $precision \
             ${addtion_options}
@@ -71,8 +81,8 @@ function generate_core {
 
         printf " numactl -m $(echo ${cpu_array[i]} |awk -F ';' '{print $2}') \
                     -C $(echo ${cpu_array[i]} |awk -F ';' '{print $1}') \
-            python examples/tensorflow/text-classification/run_glue.py \
-                --model_name_or_path $model_name \
+            python examples/tensorflow/${EXAMPLE_NAME}/run_glue.py \
+                --model_name_or_path $ARCH_NAME --task_name ${TASK_NAME} \
                 --do_eval  --output_dir output --per_device_eval_batch_size $batch_size \
                 --num_iter $num_iter --precision $precision \
                 ${addtion_options} \
@@ -102,8 +112,8 @@ function generate_core_launcher {
                     --log_path ${log_dir} \
                     --ninstances ${#cpu_array[@]} \
                     --ncore_per_instance ${real_cores_per_instance} \
-            examples/tensorflow/text-classification/run_glue.py \
-                --model_name_or_path ${model_name} \
+            examples/tensorflow/${EXAMPLE_NAME}/run_glue.py \
+                --model_name_or_path ${ARCH_NAME} --task_name ${TASK_NAME} \
                 --do_eval  --output_dir output --per_device_eval_batch_size $batch_size \
                 --num_iter $num_iter --precision $precision \
                 ${addtion_options} \
@@ -237,7 +247,7 @@ function logs_path_clean {
 function init_params {
     device='cpu'
     framework='tensorflow'
-    model_name='distilbert-base-cased'
+    model_name='text-classification+bert-base-multilingual-uncased'
     mode_name='realtime'
     precision='float32'
     batch_size=1
