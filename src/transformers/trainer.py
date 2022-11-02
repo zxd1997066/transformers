@@ -2812,6 +2812,18 @@ class Trainer:
                             metric_key_prefix=metric_key_prefix,
                             prof=prof,
                         )
+                elif self.args.precision == "float16":
+                    with torch.cuda.amp.autocast(enabled=True, dtype=torch.float16):
+                        output = eval_loop(
+                            eval_dataloader,
+                            description="Evaluation",
+                            # No point gathering the predictions if there are no metrics, otherwise we defer to
+                            # self.args.prediction_loss_only
+                            prediction_loss_only=True if self.compute_metrics is None else None,
+                            ignore_keys=ignore_keys,
+                            metric_key_prefix=metric_key_prefix,
+                            prof=prof,
+                        )
                 else:
                     output = eval_loop(
                         eval_dataloader,
@@ -2834,6 +2846,18 @@ class Trainer:
                         prediction_loss_only=True if self.compute_metrics is None else None,
                         ignore_keys=ignore_keys,
                         metric_key_prefix=metric_key_prefix,
+                    )
+            elif self.args.precision == "float16":
+                with torch.cuda.amp.autocast(enabled=True, dtype=torch.float16):
+                    output = eval_loop(
+                        eval_dataloader,
+                        description="Evaluation",
+                        # No point gathering the predictions if there are no metrics, otherwise we defer to
+                        # self.args.prediction_loss_only
+                        prediction_loss_only=True if self.compute_metrics is None else None,
+                        ignore_keys=ignore_keys,
+                        metric_key_prefix=metric_key_prefix,
+                        prof=prof,
                     )
             else:
                 output = eval_loop(
