@@ -134,7 +134,9 @@ class DataTrainingArguments:
     )
     num_iter: Optional[int] = field(default=None, metadata={ "help": ("num_iter")})
     num_warmup: Optional[int] = field(default=None, metadata={ "help": ("num_warmup")})
-    precision: Optional[str] = field(default='float32', metadata={ "help": ("num_iter")})
+    precision: Optional[str] = field(default='float32', metadata={ "help": ("precision")})
+    channels_last: Optional[int] = field(default=1, metadata={ "help": ("channels_last")})
+    profile: Optional[bool] = field(default=False, metadata={ "help": ("profile")})
 
     def __post_init__(self):
         self.task_name = self.task_name.lower()
