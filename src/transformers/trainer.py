@@ -1280,7 +1280,8 @@ class Trainer:
 
         if not training:
             model.eval()
-            model = ipex.optimize(model, dtype=dtype, level="O1")
+            # conv_bn_folding is disabled as it fails in symbolic tracing, resulting in ipex warnings
+            model = ipex.optimize(model, dtype=dtype, level="O1", conv_bn_folding=False)
         else:
             if not model.training:
                 model.train()
@@ -1651,7 +1652,10 @@ class Trainer:
         self.callback_handler.optimizer = self.optimizer
         self.callback_handler.lr_scheduler = self.lr_scheduler
         self.callback_handler.train_dataloader = train_dataloader
-        self.state.trial_name = self.hp_name(trial) if self.hp_name is not None else None
+        if self.hp_name is not None and self._trial is not None:
+            # use self._trial because the SigOpt/Optuna hpo only call `_hp_search_setup(trial)` instead of passing trial
+            # parameter to Train when using DDP.
+            self.state.trial_name = self.hp_name(self._trial)
         if trial is not None:
             assignments = trial.assignments if self.hp_search_backend == HPSearchBackend.SIGOPT else trial
             self.state.trial_params = hp_params(assignments)
