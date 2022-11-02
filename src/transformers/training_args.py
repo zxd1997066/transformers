@@ -544,6 +544,13 @@ class TrainingArguments:
         },
     )
 
+    num_iter: int = field(default=0, metadata={"help": "num_iter."})
+    num_warmup: int = field(default=0, metadata={"help": "num_warmup."})
+    precision: str = field(default='float32', metadata={"help": "precision."})
+    channels_last: int = field(default=1, metadata={"help": "channels_last."})
+    profile: bool = field(default=False, metadata={"help": "profile."})
+    ipex: bool = field(default=False, metadata={"help": "ipex."})
+    jit: bool = field(default=False, metadata={"help": "jit."})
     do_train: bool = field(default=False, metadata={"help": "Whether to run training."})
     do_eval: bool = field(default=False, metadata={"help": "Whether to run eval on the dev set."})
     do_predict: bool = field(default=False, metadata={"help": "Whether to run predictions on the test set."})

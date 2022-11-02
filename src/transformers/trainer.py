@@ -2820,15 +2820,62 @@ class Trainer:
         start_time = time.time()
 
         eval_loop = self.prediction_loop if self.args.use_legacy_prediction_loop else self.evaluation_loop
-        output = eval_loop(
-            eval_dataloader,
-            description="Evaluation",
-            # No point gathering the predictions if there are no metrics, otherwise we defer to
-            # self.args.prediction_loss_only
-            prediction_loss_only=True if self.compute_metrics is None else None,
-            ignore_keys=ignore_keys,
-            metric_key_prefix=metric_key_prefix,
-        )
+        if self.args.profile:
+            with torch.profiler.profile(
+                activities=[torch.profiler.ProfilerActivity.CPU],
+                record_shapes=True,
+                schedule=torch.profiler.schedule(
+                    wait=int(self.args.num_iter/2),
+                    warmup=2,
+                    active=1,
+                ),
+                on_trace_ready=self.trace_handler,
+            ) as prof:
+                if self.args.precision == "bfloat16":
+                    with torch.cpu.amp.autocast(enabled=True, dtype=torch.bfloat16):
+                        output = eval_loop(
+                            eval_dataloader,
+                            description="Evaluation",
+                            # No point gathering the predictions if there are no metrics, otherwise we defer to
+                            # self.args.prediction_loss_only
+                            prediction_loss_only=True if self.compute_metrics is None else None,
+                            ignore_keys=ignore_keys,
+                            metric_key_prefix=metric_key_prefix,
+                            prof=prof,
+                        )
+                else:
+                    output = eval_loop(
+                        eval_dataloader,
+                        description="Evaluation",
+                        # No point gathering the predictions if there are no metrics, otherwise we defer to
+                        # self.args.prediction_loss_only
+                        prediction_loss_only=True if self.compute_metrics is None else None,
+                        ignore_keys=ignore_keys,
+                        metric_key_prefix=metric_key_prefix,
+                        prof=prof,
+                    )
+        else:
+            if self.args.precision == "bfloat16":
+                with torch.cpu.amp.autocast(enabled=True, dtype=torch.bfloat16):
+                    output = eval_loop(
+                        eval_dataloader,
+                        description="Evaluation",
+                        # No point gathering the predictions if there are no metrics, otherwise we defer to
+                        # self.args.prediction_loss_only
+                        prediction_loss_only=True if self.compute_metrics is None else None,
+                        ignore_keys=ignore_keys,
+                        metric_key_prefix=metric_key_prefix,
+                    )
+            else:
+                output = eval_loop(
+                    eval_dataloader,
+                    description="Evaluation",
+                    # No point gathering the predictions if there are no metrics, otherwise we defer to
+                    # self.args.prediction_loss_only
+                    prediction_loss_only=True if self.compute_metrics is None else None,
+                    ignore_keys=ignore_keys,
+                    metric_key_prefix=metric_key_prefix,
+                )
 
         total_batch_size = self.args.eval_batch_size * self.args.world_size
         if f"{metric_key_prefix}_jit_compilation_time" in output.metrics:
@@ -2916,6 +2963,20 @@ class Trainer:
 
         return PredictionOutput(predictions=output.predictions, label_ids=output.label_ids, metrics=output.metrics)
 
+    def trace_handler(self, p):
+        output = p.key_averages().table(sort_by="self_cpu_time_total")
+        print(output)
+        import pathlib
+        timeline_dir = str(pathlib.Path.cwd()) + '/timeline/'
+        if not os.path.exists(timeline_dir):
+            try:
+                os.makedirs(timeline_dir)
+            except:
+                pass
+        timeline_file = timeline_dir + 'timeline-' + str(torch.backends.quantized.engine) + '-' + \
+                    'huggingface-' + str(p.step_num) + '-' + str(os.getpid()) + '.json'
+        p.export_chrome_trace(timeline_file)
+
     def evaluation_loop(
         self,
         dataloader: DataLoader,
@@ -2923,6 +2984,7 @@ class Trainer:
         prediction_loss_only: Optional[bool] = None,
         ignore_keys: Optional[List[str]] = None,
         metric_key_prefix: str = "eval",
+        prof=None,
     ) -> EvalLoopOutput:
         """
         Prediction/evaluation loop, shared by `Trainer.evaluate()` and `Trainer.predict()`.
@@ -2965,6 +3027,13 @@ class Trainer:
         logger.info(f"  Batch size = {batch_size}")
 
         model.eval()
+        with torch.no_grad():
+            if args.channels_last:
+                try:
+                    model = model.to(memory_format=torch.channels_last)
+                    print("---- Use NHWC model")
+                except Exception as e:
+                    print("NHWC: failed", e)
 
         self.callback_handler.eval_dataloader = dataloader
         # Do this before wrapping.
@@ -2992,7 +3061,15 @@ class Trainer:
 
         observed_num_examples = 0
         # Main evaluation loop
+        total_time = 0.0
+        total_sample = 0
         for step, inputs in enumerate(dataloader):
+            if args.num_iter > 0 and step >= args.num_iter: break
+            if args.channels_last:
+                try:
+                    inputs = {k:v.contiguous(memory_format=torch.channels_last) for k,v in inputs.items()}
+                except Exception as e:
+                    pass
             # Update the observed num examples
             observed_batch_size = find_batch_size(inputs)
             if observed_batch_size is not None:
@@ -3002,8 +3079,16 @@ class Trainer:
                     batch_size = observed_batch_size
 
             # Prediction step
+            elapsed = time.time()
             loss, logits, labels = self.prediction_step(model, inputs, prediction_loss_only, ignore_keys=ignore_keys)
+            elapsed = time.time() - elapsed
+            if args.profile:
+                prof.step()
             inputs_decode = self._prepare_input(inputs["input_ids"]) if args.include_inputs_for_metrics else None
+            print("Iteration: {}, inference time: {} sec.".format(step, elapsed), flush=True)
+            if step >= args.num_warmup:
+                total_time += elapsed
+                total_sample += args.per_device_eval_batch_size
 
             if is_torch_tpu_available():
                 xm.mark_step()
@@ -3125,6 +3210,11 @@ class Trainer:
         for key in list(metrics.keys()):
             if not key.startswith(f"{metric_key_prefix}_"):
                 metrics[f"{metric_key_prefix}_{key}"] = metrics.pop(key)
+                
+        latency = total_time / total_sample * 1000
+        throughput = total_sample / total_time
+        print("inference Latency: {:.3f} ms".format(latency))
+        print("inference Throughput: {} samples/s".format(throughput))
 
         return EvalLoopOutput(predictions=all_preds, label_ids=all_labels, metrics=metrics, num_samples=num_samples)
 
