@@ -35,7 +35,7 @@ function main {
             --num_iter 3 --num_warmup 1 \
             --precision $precision \
             --channels_last $channels_last \
-            ${addtion_options}
+            ${addtion_options} || true
         #
         for batch_size in ${batch_size_list[@]}
         do
