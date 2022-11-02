@@ -2888,7 +2888,6 @@ class Trainer:
                         prediction_loss_only=True if self.compute_metrics is None else None,
                         ignore_keys=ignore_keys,
                         metric_key_prefix=metric_key_prefix,
-                        prof=prof,
                     )
             else:
                 output = eval_loop(
