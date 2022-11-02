@@ -133,6 +133,7 @@ class DataTrainingArguments:
         },
     )
     num_iter: Optional[int] = field(default=None, metadata={ "help": ("num_iter")})
+    num_warmup: Optional[int] = field(default=None, metadata={ "help": ("num_warmup")})
     precision: Optional[str] = field(default='float32', metadata={ "help": ("num_iter")})
 
     def __post_init__(self):
