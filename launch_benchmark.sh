@@ -19,7 +19,7 @@ function main {
     fi
     model_args="  "
     pip uninstall -y transformers tokenizers || true
-    python setup.py install
+    pip install -e .
 
     # if multiple use 'xxx,xxx,xxx'
     model_name_list=($(echo "${model_name}" |sed 's/,/ /g'))
