@@ -532,10 +532,10 @@ def main():
                 if training_args.num_iter is not None and training_args.num_iter > len(tf_dataset):
                     training_args.num_iter = len(tf_dataset)
                 # warmup
-                eval_predictions = model.predict(tf_dataset, steps=math.ceil(training_args.num_iter/10))
+                eval_predictions = model.predict(tf_dataset, steps=math.ceil(training_args.num_iter/10), batch_size=1)
                 # forward
                 elapsed = time.time()
-                eval_predictions = model.predict(tf_dataset, steps=training_args.num_iter)
+                eval_predictions = model.predict(tf_dataset, steps=training_args.num_iter, batch_size=training_args.per_device_eval_batch_size)
                 elapsed = time.time() - elapsed
                 throughput = training_args.num_iter * training_args.per_device_eval_batch_size / elapsed
                 print("inference Throughput: {} samples/s".format(throughput))
