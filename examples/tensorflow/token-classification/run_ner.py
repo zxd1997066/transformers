@@ -22,6 +22,8 @@ import json
 import logging
 import os
 import random
+import time
+import math
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -196,6 +198,13 @@ def main():
     # region Argument Parsing
     parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TFTrainingArguments))
     model_args, data_args, training_args = parser.parse_args_into_dataclasses()
+
+    # mixed precision
+    if training_args.precision == "bfloat16":
+        from tensorflow.keras import mixed_precision
+        policy = mixed_precision.Policy('mixed_bfloat16')
+        mixed_precision.set_global_policy(policy)
+        print("---- Use AMP")
 
     # Sending telemetry. Tracking the example usage helps us better allocate resources to maintain them. The
     # information sent is the one passed as arguments along with your Python/PyTorch versions.
@@ -522,36 +531,51 @@ def main():
         else:
             callbacks = []
         # endregion
+        if training_args.do_train:
+            # region Training
+            logger.info("***** Running training *****")
+            logger.info(f"  Num examples = {len(train_dataset)}")
+            logger.info(f"  Num Epochs = {training_args.num_train_epochs}")
+            logger.info(f"  Instantaneous batch size per device = {training_args.per_device_train_batch_size}")
+            logger.info(f"  Total train batch size = {total_train_batch_size}")
+            # Only show the progress bar once on each machine.
 
-        # region Training
-        logger.info("***** Running training *****")
-        logger.info(f"  Num examples = {len(train_dataset)}")
-        logger.info(f"  Num Epochs = {training_args.num_train_epochs}")
-        logger.info(f"  Instantaneous batch size per device = {training_args.per_device_train_batch_size}")
-        logger.info(f"  Total train batch size = {total_train_batch_size}")
-        # Only show the progress bar once on each machine.
-
-        model.fit(
-            tf_train_dataset,
-            validation_data=tf_eval_dataset,
-            epochs=int(training_args.num_train_epochs),
-            callbacks=callbacks,
-        )
+            model.fit(
+                tf_train_dataset,
+                validation_data=tf_eval_dataset,
+                epochs=int(training_args.num_train_epochs),
+                callbacks=callbacks,
+            )
         # endregion
 
         # region Predictions
         # If you have variable batch sizes (i.e. not using pad_to_max_length), then
         # this bit might fail on TF < 2.8 because TF can't concatenate outputs of varying seq
         # length from predict().
-
-        try:
-            predictions = model.predict(tf_eval_dataset, batch_size=training_args.per_device_eval_batch_size)["logits"]
-        except tf.python.framework.errors_impl.InvalidArgumentError:
-            raise ValueError(
-                "Concatenating predictions failed! If your version of TensorFlow is 2.8.0 or older "
-                "then you will need to use --pad_to_max_length to generate predictions, as older "
-                "versions of TensorFlow cannot concatenate variable-length predictions as RaggedTensor."
-            )
+        if training_args.do_eval:
+            if training_args.num_iter is not None and training_args.num_iter > len(tf_eval_dataset):
+                    training_args.num_iter = len(tf_eval_dataset)
+            try:
+                predictions = model.predict(
+                    tf_eval_dataset,
+                    batch_size=training_args.per_device_eval_batch_size,
+                    steps=math.ceil(training_args.num_iter/10)
+                )["logits"]
+                elapsed = time.time()
+                predictions = model.predict(
+                    tf_eval_dataset,
+                    batch_size=training_args.per_device_eval_batch_size,
+                    steps=training_args.num_iter
+                )["logits"]
+                elapsed = time.time() - elapsed
+                throughput = training_args.num_iter * training_args.per_device_eval_batch_size / elapsed
+                print("inference Throughput: {} samples/s".format(throughput))
+            except tf.python.framework.errors_impl.InvalidArgumentError:
+                raise ValueError(
+                    "Concatenating predictions failed! If your version of TensorFlow is 2.8.0 or older "
+                    "then you will need to use --pad_to_max_length to generate predictions, as older "
+                    "versions of TensorFlow cannot concatenate variable-length predictions as RaggedTensor."
+                )
         if isinstance(predictions, tf.RaggedTensor):
             predictions = predictions.to_tensor(default_value=-100)
         predictions = tf.math.argmax(predictions, axis=-1).numpy()
@@ -576,7 +600,7 @@ def main():
         logger.info("Evaluation metrics:")
         for key, val in eval_metric.items():
             logger.info(f"{key}: {val:.4f}")
-
+        exit()
         if training_args.output_dir is not None:
             output_eval_file = os.path.join(training_args.output_dir, "all_results.json")
             with open(output_eval_file, "w") as writer:
