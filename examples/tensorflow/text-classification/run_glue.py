@@ -538,7 +538,7 @@ def main():
                 eval_predictions = model.predict(tf_dataset, steps=training_args.num_iter)
                 elapsed = time.time() - elapsed
                 throughput = training_args.num_iter * training_args.per_device_eval_batch_size / elapsed
-                print("inference Throughput:\t {:.2f} samples/s".format(throughput))
+                print("inference Throughput: {} samples/s".format(throughput))
                 exit()
                 eval_metrics = compute_metrics(eval_predictions, raw_dataset["label"])
                 print(f"Evaluation metrics ({task}):")
