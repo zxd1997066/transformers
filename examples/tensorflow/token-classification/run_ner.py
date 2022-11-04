@@ -552,9 +552,10 @@ def main():
             if training_args.num_iter is not None and training_args.num_iter > len(tf_eval_dataset):
                     training_args.num_iter = len(tf_eval_dataset)
             try:
+                # warmup
                 predictions = model.predict(
                     tf_eval_dataset,
-                    batch_size=training_args.per_device_eval_batch_size,
+                    batch_size=1,
                     steps=math.ceil(training_args.num_iter/10)
                 )["logits"]
                 elapsed = time.time()
