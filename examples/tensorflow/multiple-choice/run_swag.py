@@ -21,6 +21,8 @@ Fine-tuning the library models for multiple choice.
 import json
 import logging
 import os
+import time
+import math
 import sys
 from dataclasses import dataclass, field
 from itertools import chain
@@ -237,6 +239,13 @@ def main():
         model_args, data_args, training_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
     else:
         model_args, data_args, training_args = parser.parse_args_into_dataclasses()
+
+    # mixed precision
+    if training_args.precision == "bfloat16":
+        from tensorflow.keras import mixed_precision
+        policy = mixed_precision.Policy('mixed_bfloat16')
+        mixed_precision.set_global_policy(policy)
+        print("---- Use AMP")
 
     # Sending telemetry. Tracking the example usage helps us better allocate resources to maintain them. The
     # information sent is the one passed as arguments along with your Python/PyTorch versions.
@@ -533,8 +542,22 @@ def main():
                 collate_fn=data_collator,
                 drop_remainder=True,
             ).with_options(dataset_options)
-            eval_results = model.evaluate(tf_eval_dataset)
+            # eval_results = model.evaluate(tf_eval_dataset)
+            if training_args.num_iter is not None and training_args.num_iter > len(tf_eval_dataset):
+                training_args.num_iter = len(tf_eval_dataset)
+            # warmup
+            eval_results = model.evaluate(tf_eval_dataset, steps=math.ceil(training_args.num_iter/10), batch_size=1)
+            elapsed = time.time()
+            eval_results = model.evaluate(
+                tf_eval_dataset,
+                steps=training_args.num_iter,
+                batch_size=training_args.per_device_eval_batch_size
+            )
+            elapsed = time.time() - elapsed
+            throughput = training_args.num_iter * training_args.per_device_eval_batch_size / elapsed
+            print("inference Throughput: {} samples/s".format(throughput))
             eval_metrics = {"val_loss": eval_results[0], "val_accuracy": eval_results[1]}
+            exit()
         # endregion
 
         if eval_metrics is not None and training_args.output_dir is not None:
