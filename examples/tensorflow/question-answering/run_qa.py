@@ -21,6 +21,8 @@ Fine-tuning the library models for question answering.
 import json
 import logging
 import os
+import time
+import math
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -244,6 +246,13 @@ def main():
     else:
         model_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
+    # mixed precision
+    if training_args.precision == "bfloat16":
+        from tensorflow.keras import mixed_precision
+        policy = mixed_precision.Policy('mixed_bfloat16')
+        mixed_precision.set_global_policy(policy)
+        print("---- Use AMP")
+
     # Sending telemetry. Tracking the example usage helps us better allocate resources to maintain them. The
     # information sent is the one passed as arguments along with your Python/PyTorch versions.
     send_example_telemetry("run_qa", model_args, data_args, framework="tensorflow")
@@ -274,13 +283,13 @@ def main():
         datefmt="%m/%d/%Y %H:%M:%S",
         handlers=[logging.StreamHandler(sys.stdout)],
     )
-    logger.setLevel(logging.INFO if training_args.should_log else logging.WARN)
+    # logger.setLevel(logging.INFO if training_args.should_log else logging.WARN)
 
     # Set the verbosity to info of the Transformers logger (on main process only):
-    if training_args.should_log:
-        transformers.utils.logging.set_verbosity_info()
-        transformers.utils.logging.enable_default_handler()
-        transformers.utils.logging.enable_explicit_format()
+    # if training_args.should_log:
+    #     transformers.utils.logging.set_verbosity_info()
+    #     transformers.utils.logging.enable_default_handler()
+    #     transformers.utils.logging.enable_explicit_format()
     logger.info(f"Training/evaluation parameters {training_args}")
     # endregion
 
@@ -737,8 +746,21 @@ def main():
             # if you'd like to compute metrics every epoch that are too complex to be written as
             # standard Keras metrics, you can use our KerasMetricCallback. See
             # https://huggingface.co/docs/transformers/main/en/main_classes/keras_callbacks
+            if training_args.num_iter is not None and training_args.num_iter > len(eval_dataset):
+                training_args.num_iter = len(eval_dataset)
+            # warmup
+            eval_predictions = model.predict(eval_dataset, steps=math.ceil(training_args.num_iter/10), batch_size=1)
+            elapsed = time.time()
+            eval_predictions = model.predict(
+                eval_dataset,
+                steps=training_args.num_iter,
+                batch_size=training_args.per_device_eval_batch_size
+            )
+            elapsed = time.time() - elapsed
+            throughput = training_args.num_iter * training_args.per_device_eval_batch_size / elapsed
+            print("inference Throughput: {} samples/s".format(throughput))
 
-            eval_predictions = model.predict(eval_dataset)
+            # eval_predictions = model.predict(eval_dataset)
             if isinstance(eval_predictions.start_logits, tf.RaggedTensor):
                 # If predictions are RaggedTensor, we densify them. Since they are logits, padding with 0 is a bad idea!
                 # The reason is that a logit of 0 can often end up as quite a high probability value, sometimes even
@@ -759,6 +781,7 @@ def main():
             logging.info("Evaluation metrics:")
             for metric, value in metrics.items():
                 logging.info(f"{metric}: {value:.3f}")
+            exit()
             if training_args.output_dir is not None:
                 output_eval_file = os.path.join(training_args.output_dir, "all_results.json")
                 with open(output_eval_file, "w") as writer:
