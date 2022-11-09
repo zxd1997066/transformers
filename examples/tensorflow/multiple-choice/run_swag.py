@@ -21,9 +21,9 @@ Fine-tuning the library models for multiple choice.
 import json
 import logging
 import os
+import sys
 import time
 import math
-import sys
 from dataclasses import dataclass, field
 from itertools import chain
 from pathlib import Path
@@ -245,7 +245,12 @@ def main():
         from tensorflow.keras import mixed_precision
         policy = mixed_precision.Policy('mixed_bfloat16')
         mixed_precision.set_global_policy(policy)
-        print("---- Use AMP")
+        print("---- Use bfloat16 AMP")
+    elif training_args.precision == "float16":
+        from tensorflow.keras import mixed_precision
+        policy = mixed_precision.Policy('mixed_float16')
+        mixed_precision.set_global_policy(policy)
+        print("---- Use float16 AMP")
 
     # Sending telemetry. Tracking the example usage helps us better allocate resources to maintain them. The
     # information sent is the one passed as arguments along with your Python/PyTorch versions.
@@ -388,20 +393,20 @@ def main():
         data = {k: [v[i : i + 4] for i in range(0, len(v), 4)] for k, v in tokenized_examples.items()}
         return data
 
-    if training_args.do_train:
-        if "train" not in raw_datasets:
-            raise ValueError("--do_train requires a train dataset")
-        train_dataset = raw_datasets["train"]
-        if data_args.max_train_samples is not None:
-            max_train_samples = min(len(train_dataset), data_args.max_train_samples)
-            train_dataset = train_dataset.select(range(max_train_samples))
-        with training_args.main_process_first(desc="train dataset map pre-processing"):
-            train_dataset = train_dataset.map(
-                preprocess_function,
-                batched=True,
-                num_proc=data_args.preprocessing_num_workers,
-                load_from_cache_file=not data_args.overwrite_cache,
-            )
+    # if training_args.do_train:
+    if "train" not in raw_datasets:
+        raise ValueError("--do_train requires a train dataset")
+    train_dataset = raw_datasets["train"]
+    if data_args.max_train_samples is not None:
+        max_train_samples = min(len(train_dataset), data_args.max_train_samples)
+        train_dataset = train_dataset.select(range(max_train_samples))
+    with training_args.main_process_first(desc="train dataset map pre-processing"):
+        train_dataset = train_dataset.map(
+            preprocess_function,
+            batched=True,
+            num_proc=data_args.preprocessing_num_workers,
+            load_from_cache_file=not data_args.overwrite_cache,
+        )
 
     if training_args.do_eval:
         if "validation" not in raw_datasets:
@@ -443,26 +448,26 @@ def main():
         total_train_batch_size = training_args.per_device_train_batch_size * num_replicas
         total_eval_batch_size = training_args.per_device_eval_batch_size * num_replicas
 
-        if training_args.do_train:
-            num_train_steps = (len(train_dataset) // total_train_batch_size) * int(training_args.num_train_epochs)
-            if training_args.warmup_steps > 0:
-                num_warmup_steps = training_args.warmup_steps
-            elif training_args.warmup_ratio > 0:
-                num_warmup_steps = int(num_train_steps * training_args.warmup_ratio)
-            else:
-                num_warmup_steps = 0
-            optimizer, lr_schedule = create_optimizer(
-                init_lr=training_args.learning_rate,
-                num_train_steps=num_train_steps,
-                num_warmup_steps=num_warmup_steps,
-                adam_beta1=training_args.adam_beta1,
-                adam_beta2=training_args.adam_beta2,
-                adam_epsilon=training_args.adam_epsilon,
-                weight_decay_rate=training_args.weight_decay,
-                adam_global_clipnorm=training_args.max_grad_norm,
-            )
+        # if training_args.do_train:
+        num_train_steps = (len(train_dataset) // total_train_batch_size) * int(training_args.num_train_epochs)
+        if training_args.warmup_steps > 0:
+            num_warmup_steps = training_args.warmup_steps
+        elif training_args.warmup_ratio > 0:
+            num_warmup_steps = int(num_train_steps * training_args.warmup_ratio)
         else:
-            optimizer = None
+            num_warmup_steps = 0
+        optimizer, lr_schedule = create_optimizer(
+            init_lr=training_args.learning_rate,
+            num_train_steps=num_train_steps,
+            num_warmup_steps=num_warmup_steps,
+            adam_beta1=training_args.adam_beta1,
+            adam_beta2=training_args.adam_beta2,
+            adam_epsilon=training_args.adam_epsilon,
+            weight_decay_rate=training_args.weight_decay,
+            adam_global_clipnorm=training_args.max_grad_norm,
+        )
+        # else:
+        #     optimizer = None
         model.compile(optimizer=optimizer, metrics=["accuracy"], jit_compile=training_args.xla)
         # endregion
 
@@ -542,11 +547,10 @@ def main():
                 collate_fn=data_collator,
                 drop_remainder=True,
             ).with_options(dataset_options)
-            # eval_results = model.evaluate(tf_eval_dataset)
             if training_args.num_iter is not None and training_args.num_iter > len(tf_eval_dataset):
                 training_args.num_iter = len(tf_eval_dataset)
             # warmup
-            eval_results = model.evaluate(tf_eval_dataset, steps=math.ceil(training_args.num_iter/10), batch_size=1)
+            eval_results = model.evaluate(tf_eval_dataset, steps=math.ceil(training_args.num_iter/10))
             elapsed = time.time()
             eval_results = model.evaluate(
                 tf_eval_dataset,
@@ -556,8 +560,9 @@ def main():
             elapsed = time.time() - elapsed
             throughput = training_args.num_iter * training_args.per_device_eval_batch_size / elapsed
             print("inference Throughput: {} samples/s".format(throughput))
-            eval_metrics = {"val_loss": eval_results[0], "val_accuracy": eval_results[1]}
             exit()
+            # eval_results = model.evaluate(tf_eval_dataset)
+            eval_metrics = {"val_loss": eval_results[0], "val_accuracy": eval_results[1]}
         # endregion
 
         if eval_metrics is not None and training_args.output_dir is not None:
