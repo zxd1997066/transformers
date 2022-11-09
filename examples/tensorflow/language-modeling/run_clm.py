@@ -30,6 +30,7 @@ import math
 import os
 import random
 import sys
+import time
 from dataclasses import dataclass, field
 from itertools import chain
 from pathlib import Path
@@ -219,6 +220,18 @@ def main():
         model_args, data_args, training_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
     else:
         model_args, data_args, training_args = parser.parse_args_into_dataclasses()
+
+    # mixed precision
+    if training_args.precision == "bfloat16":
+        from tensorflow.keras import mixed_precision
+        policy = mixed_precision.Policy('mixed_bfloat16')
+        mixed_precision.set_global_policy(policy)
+        print("---- Use bfloat16 AMP")
+    elif training_args.precision == "float16":
+        from tensorflow.keras import mixed_precision
+        policy = mixed_precision.Policy('mixed_float16')
+        mixed_precision.set_global_policy(policy)
+        print("---- Use float16 AMP")
 
     # Sending telemetry. Tracking the example usage helps us better allocate resources to maintain them. The
     # information sent is the one passed as arguments along with your Python/PyTorch versions.
@@ -561,49 +574,65 @@ def main():
         else:
             callbacks = []
         # endregion
+        if training_args.do_train:
+            # region Training and validation
+            logger.info("***** Running training *****")
+            logger.info(f"  Num examples = {len(train_dataset)}")
+            logger.info(f"  Num Epochs = {training_args.num_train_epochs}")
+            logger.info(f"  Instantaneous batch size per device = {training_args.per_device_train_batch_size}")
+            logger.info(f"  Total train batch size = {training_args.per_device_train_batch_size * num_replicas}")
 
-        # region Training and validation
-        logger.info("***** Running training *****")
-        logger.info(f"  Num examples = {len(train_dataset)}")
-        logger.info(f"  Num Epochs = {training_args.num_train_epochs}")
-        logger.info(f"  Instantaneous batch size per device = {training_args.per_device_train_batch_size}")
-        logger.info(f"  Total train batch size = {training_args.per_device_train_batch_size * num_replicas}")
+            # For long training runs, you may wish to use the PushToHub() callback here to save intermediate checkpoints
+            # to the Hugging Face Hub rather than just pushing the finished model.
+            # See https://huggingface.co/docs/transformers/main_classes/keras_callbacks#transformers.PushToHubCallback
 
-        # For long training runs, you may wish to use the PushToHub() callback here to save intermediate checkpoints
-        # to the Hugging Face Hub rather than just pushing the finished model.
-        # See https://huggingface.co/docs/transformers/main_classes/keras_callbacks#transformers.PushToHubCallback
+            history = model.fit(
+                tf_train_dataset,
+                validation_data=tf_eval_dataset,
+                epochs=int(training_args.num_train_epochs),
+                callbacks=callbacks,
+            )
+            train_loss = history.history["loss"][-1]
+            try:
+                train_perplexity = math.exp(train_loss)
+            except OverflowError:
+                train_perplexity = math.inf
+            logger.info(f"  Final train loss: {train_loss:.3f}")
+            logger.info(f"  Final train perplexity: {train_perplexity:.3f}")
+            validation_loss = history.history["val_loss"][-1]
+            try:
+                validation_perplexity = math.exp(validation_loss)
+            except OverflowError:
+                validation_perplexity = math.inf
+            logger.info(f"  Final validation loss: {validation_loss:.3f}")
+            logger.info(f"  Final validation perplexity: {validation_perplexity:.3f}")
 
-        history = model.fit(
-            tf_train_dataset,
-            validation_data=tf_eval_dataset,
-            epochs=int(training_args.num_train_epochs),
-            callbacks=callbacks,
-        )
-        train_loss = history.history["loss"][-1]
-        try:
-            train_perplexity = math.exp(train_loss)
-        except OverflowError:
-            train_perplexity = math.inf
-        logger.info(f"  Final train loss: {train_loss:.3f}")
-        logger.info(f"  Final train perplexity: {train_perplexity:.3f}")
-        validation_loss = history.history["val_loss"][-1]
-        try:
-            validation_perplexity = math.exp(validation_loss)
-        except OverflowError:
-            validation_perplexity = math.inf
-        logger.info(f"  Final validation loss: {validation_loss:.3f}")
-        logger.info(f"  Final validation perplexity: {validation_perplexity:.3f}")
+            if training_args.output_dir is not None:
+                output_eval_file = os.path.join(training_args.output_dir, "all_results.json")
+                results_dict = dict()
+                results_dict["train_loss"] = train_loss
+                results_dict["train_perplexity"] = train_perplexity
+                results_dict["eval_loss"] = validation_loss
+                results_dict["eval_perplexity"] = validation_perplexity
+                with open(output_eval_file, "w") as writer:
+                    writer.write(json.dumps(results_dict))
 
-        if training_args.output_dir is not None:
-            output_eval_file = os.path.join(training_args.output_dir, "all_results.json")
-            results_dict = dict()
-            results_dict["train_loss"] = train_loss
-            results_dict["train_perplexity"] = train_perplexity
-            results_dict["eval_loss"] = validation_loss
-            results_dict["eval_perplexity"] = validation_perplexity
-            with open(output_eval_file, "w") as writer:
-                writer.write(json.dumps(results_dict))
         # endregion
+        if training_args.do_eval:
+            if training_args.num_iter is not None and training_args.num_iter > len(tf_eval_dataset):
+                training_args.num_iter = len(tf_eval_dataset)
+            # warmup
+            eval_predictions = model.predict(tf_eval_dataset, steps=math.ceil(training_args.num_iter/10), batch_size=1)
+            elapsed = time.time()
+            eval_predictions = model.predict(
+                tf_eval_dataset,
+                steps=training_args.num_iter,
+                batch_size=training_args.per_device_eval_batch_size
+            )
+            elapsed = time.time() - elapsed
+            throughput = training_args.num_iter * training_args.per_device_eval_batch_size / elapsed
+            print("inference Throughput: {} samples/s".format(throughput))
+            exit()
 
     if training_args.output_dir is not None and not training_args.push_to_hub:
         # If we're not pushing to hub, at least save a local copy when we're done
