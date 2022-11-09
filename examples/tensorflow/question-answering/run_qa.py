@@ -21,9 +21,9 @@ Fine-tuning the library models for question answering.
 import json
 import logging
 import os
+import sys
 import time
 import math
-import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
@@ -251,7 +251,12 @@ def main():
         from tensorflow.keras import mixed_precision
         policy = mixed_precision.Policy('mixed_bfloat16')
         mixed_precision.set_global_policy(policy)
-        print("---- Use AMP")
+        print("---- Use bfloat16 AMP")
+    elif training_args.precision == "float16":
+        from tensorflow.keras import mixed_precision
+        policy = mixed_precision.Policy('mixed_float16')
+        mixed_precision.set_global_policy(policy)
+        print("---- Use float16 AMP")
 
     # Sending telemetry. Tracking the example usage helps us better allocate resources to maintain them. The
     # information sent is the one passed as arguments along with your Python/PyTorch versions.
@@ -368,12 +373,12 @@ def main():
 
     # region Preprocessing the datasets
     # Preprocessing is slightly different for training and evaluation.
-    if training_args.do_train:
-        column_names = datasets["train"].column_names
-    elif training_args.do_eval:
-        column_names = datasets["validation"].column_names
-    else:
-        column_names = datasets["test"].column_names
+    # if training_args.do_train:
+    column_names = datasets["train"].column_names
+    # elif training_args.do_eval:
+    column_names = datasets["validation"].column_names
+    # else:
+    #     column_names = datasets["test"].column_names
     question_column_name = "question" if "question" in column_names else column_names[0]
     context_column_name = "context" if "context" in column_names else column_names[1]
     answer_column_name = "answers" if "answers" in column_names else column_names[2]
@@ -473,27 +478,27 @@ def main():
         return tokenized_examples
 
     processed_datasets = dict()
-    if training_args.do_train:
-        if "train" not in datasets:
-            raise ValueError("--do_train requires a train dataset")
-        train_dataset = datasets["train"]
-        if data_args.max_train_samples is not None:
-            # We will select sample from whole data if agument is specified
-            max_train_samples = min(len(train_dataset), data_args.max_train_samples)
-            train_dataset = train_dataset.select(range(max_train_samples))
-        # Create train feature from dataset
-        train_dataset = train_dataset.map(
-            prepare_train_features,
-            batched=True,
-            num_proc=data_args.preprocessing_num_workers,
-            remove_columns=column_names,
-            load_from_cache_file=not data_args.overwrite_cache,
-        )
-        if data_args.max_train_samples is not None:
-            # Number of samples might increase during Feature Creation, We select only specified max samples
-            max_train_samples = min(len(train_dataset), data_args.max_train_samples)
-            train_dataset = train_dataset.select(range(max_train_samples))
-        processed_datasets["train"] = train_dataset
+    # if training_args.do_train:
+    if "train" not in datasets:
+        raise ValueError("--do_train requires a train dataset")
+    train_dataset = datasets["train"]
+    if data_args.max_train_samples is not None:
+        # We will select sample from whole data if agument is specified
+        max_train_samples = min(len(train_dataset), data_args.max_train_samples)
+        train_dataset = train_dataset.select(range(max_train_samples))
+    # Create train feature from dataset
+    train_dataset = train_dataset.map(
+        prepare_train_features,
+        batched=True,
+        num_proc=data_args.preprocessing_num_workers,
+        remove_columns=column_names,
+        load_from_cache_file=not data_args.overwrite_cache,
+    )
+    if data_args.max_train_samples is not None:
+        # Number of samples might increase during Feature Creation, We select only specified max samples
+        max_train_samples = min(len(train_dataset), data_args.max_train_samples)
+        train_dataset = train_dataset.select(range(max_train_samples))
+    processed_datasets["train"] = train_dataset
 
     # Validation preprocessing
     def prepare_validation_features(examples):
@@ -636,42 +641,42 @@ def main():
             revision=model_args.model_revision,
             use_auth_token=True if model_args.use_auth_token else None,
         )
-        if training_args.do_train:
+        # if training_args.do_train:
 
-            training_dataset = model.prepare_tf_dataset(
-                processed_datasets["train"],
-                shuffle=True,
-                batch_size=training_args.per_device_train_batch_size * num_replicas,
-                tokenizer=tokenizer,
-            )
+        training_dataset = model.prepare_tf_dataset(
+            processed_datasets["train"],
+            shuffle=True,
+            batch_size=training_args.per_device_train_batch_size * num_replicas,
+            tokenizer=tokenizer,
+        )
 
-            training_dataset = training_dataset.with_options(dataset_options)
+        training_dataset = training_dataset.with_options(dataset_options)
 
-            num_train_steps = len(training_dataset) * training_args.num_train_epochs
-            if training_args.warmup_steps > 0:
-                num_warmup_steps = training_args.warmup_steps
-            elif training_args.warmup_ratio > 0:
-                num_warmup_steps = int(num_train_steps * training_args.warmup_ratio)
-            else:
-                num_warmup_steps = 0
-
-            optimizer, schedule = create_optimizer(
-                init_lr=training_args.learning_rate,
-                num_train_steps=len(training_dataset) * training_args.num_train_epochs,
-                num_warmup_steps=num_warmup_steps,
-                adam_beta1=training_args.adam_beta1,
-                adam_beta2=training_args.adam_beta2,
-                adam_epsilon=training_args.adam_epsilon,
-                weight_decay_rate=training_args.weight_decay,
-                adam_global_clipnorm=training_args.max_grad_norm,
-            )
-
-            # no user-specified loss = will use the model internal loss
-            model.compile(optimizer=optimizer, jit_compile=training_args.xla, metrics=["accuracy"])
-
+        num_train_steps = len(training_dataset) * training_args.num_train_epochs
+        if training_args.warmup_steps > 0:
+            num_warmup_steps = training_args.warmup_steps
+        elif training_args.warmup_ratio > 0:
+            num_warmup_steps = int(num_train_steps * training_args.warmup_ratio)
         else:
-            model.compile(optimizer=None, jit_compile=training_args.xla, metrics=["accuracy"])
-            training_dataset = None
+            num_warmup_steps = 0
+
+        optimizer, schedule = create_optimizer(
+            init_lr=training_args.learning_rate,
+            num_train_steps=len(training_dataset) * training_args.num_train_epochs,
+            num_warmup_steps=num_warmup_steps,
+            adam_beta1=training_args.adam_beta1,
+            adam_beta2=training_args.adam_beta2,
+            adam_epsilon=training_args.adam_epsilon,
+            weight_decay_rate=training_args.weight_decay,
+            adam_global_clipnorm=training_args.max_grad_norm,
+        )
+
+        # no user-specified loss = will use the model internal loss
+        model.compile(optimizer=optimizer, jit_compile=training_args.xla, metrics=["accuracy"])
+
+        # else:
+        #     model.compile(optimizer=None, jit_compile=training_args.xla, metrics=["accuracy"])
+        #     training_dataset = None
 
         if training_args.do_eval:
             eval_dataset = model.prepare_tf_dataset(
@@ -749,7 +754,7 @@ def main():
             if training_args.num_iter is not None and training_args.num_iter > len(eval_dataset):
                 training_args.num_iter = len(eval_dataset)
             # warmup
-            eval_predictions = model.predict(eval_dataset, steps=math.ceil(training_args.num_iter/10), batch_size=1)
+            eval_predictions = model.predict(eval_dataset, steps=math.ceil(training_args.num_iter/10))
             elapsed = time.time()
             eval_predictions = model.predict(
                 eval_dataset,
@@ -759,7 +764,7 @@ def main():
             elapsed = time.time() - elapsed
             throughput = training_args.num_iter * training_args.per_device_eval_batch_size / elapsed
             print("inference Throughput: {} samples/s".format(throughput))
-
+            exit()
             # eval_predictions = model.predict(eval_dataset)
             if isinstance(eval_predictions.start_logits, tf.RaggedTensor):
                 # If predictions are RaggedTensor, we densify them. Since they are logits, padding with 0 is a bad idea!
@@ -781,7 +786,6 @@ def main():
             logging.info("Evaluation metrics:")
             for metric, value in metrics.items():
                 logging.info(f"{metric}: {value:.3f}")
-            exit()
             if training_args.output_dir is not None:
                 output_eval_file = os.path.join(training_args.output_dir, "all_results.json")
                 with open(output_eval_file, "w") as writer:
