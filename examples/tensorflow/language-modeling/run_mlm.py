@@ -232,7 +232,12 @@ def main():
         from tensorflow.keras import mixed_precision
         policy = mixed_precision.Policy('mixed_bfloat16')
         mixed_precision.set_global_policy(policy)
-        print("---- Use AMP")
+        print("---- Use bfloat16 AMP")
+    elif training_args.precision == "float16":
+        from tensorflow.keras import mixed_precision
+        policy = mixed_precision.Policy('mixed_float16')
+        mixed_precision.set_global_policy(policy)
+        print("---- Use float16 AMP")
 
     # Sending telemetry. Tracking the example usage helps us better allocate resources to maintain them. The
     # information sent is the one passed as arguments along with your Python/PyTorch versions.
