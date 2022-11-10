@@ -375,6 +375,10 @@ def main():
         use_auth_token=True if model_args.use_auth_token else None,
         ignore_mismatched_sizes=model_args.ignore_mismatched_sizes,
     )
+    
+    if model_args.model_name_or_path == 'gpt2':
+        tokenizer.pad_token = tokenizer.eos_token
+        model.config.pad_token_id = tokenizer.pad_token_id
 
     # Tokenizer check: this script requires a fast tokenizer.
     if not isinstance(tokenizer, PreTrainedTokenizerFast):
