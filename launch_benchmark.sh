@@ -20,6 +20,7 @@ function main {
     model_args="  "
     pip uninstall -y transformers tokenizers || true
     pip install -e .
+    pip install nltk rouge_score seqeval sacrebleu sentencepiece
 
     # if multiple use 'xxx,xxx,xxx'
     model_name_list=($(echo "${model_name}" |sed 's/,/ /g'))
