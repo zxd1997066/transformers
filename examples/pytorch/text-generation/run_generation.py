@@ -20,6 +20,8 @@
 
 import argparse
 import logging
+import os
+import time
 
 import numpy as np
 import torch
@@ -168,7 +170,7 @@ def main():
         help="Path to pre-trained model or shortcut name selected in the list: " + ", ".join(MODEL_CLASSES.keys()),
     )
 
-    parser.add_argument("--prompt", type=str, default="")
+    parser.add_argument("--prompt", type=str, default="EleutherAI has")
     parser.add_argument("--length", type=int, default=20)
     parser.add_argument("--stop_token", type=str, default=None, help="Token at which text generation is stopped")
 
@@ -191,6 +193,16 @@ def main():
     parser.add_argument("--seed", type=int, default=42, help="random seed for initialization")
     parser.add_argument("--no_cuda", action="store_true", help="Avoid using CUDA when available")
     parser.add_argument("--num_return_sequences", type=int, default=1, help="The number of samples to generate.")
+
+    parser.add_argument("--do_eval", action='store_true', help="do_eval")
+    parser.add_argument("--profile", action='store_true', help="profile")
+    parser.add_argument("--output_dir", type=str, default='/tmp/output', help="output_dir")
+    parser.add_argument("--overwrite_output_dir", action='store_true', help="overwrite_output_dir")
+    parser.add_argument("--per_device_eval_batch_size", type=int, default=1, help="per_device_eval_batch_size")
+    parser.add_argument("--num_iter", type=int, default=0, help="num_iter")
+    parser.add_argument("--num_warmup", type=int, default=0, help="num_warmup")
+    parser.add_argument("--precision", type=str, default='float32', help="precision")
+    parser.add_argument("--channels_last", type=int, default=1, help="channels_last")
     parser.add_argument(
         "--fp16",
         action="store_true",
@@ -214,6 +226,8 @@ def main():
 
     tokenizer = tokenizer_class.from_pretrained(args.model_name_or_path)
     model = model_class.from_pretrained(args.model_name_or_path)
+    tokenizer.pad_token = tokenizer.eos_token
+    model.config.pad_token_id = tokenizer.pad_token_id
     model.to(args.device)
 
     if args.fp16:
@@ -247,17 +261,117 @@ def main():
         input_ids = None
     else:
         input_ids = encoded_prompt
+    # model
+    if args.channels_last:
+        model = model.to(memory_format=torch.channels_last)
+        # input_ids = input_ids.contiguous(memory_format=torch.channels_last)
+        print("---- Use NHWC model")
 
-    output_sequences = model.generate(
-        input_ids=input_ids,
-        max_length=args.length + len(encoded_prompt[0]),
-        temperature=args.temperature,
-        top_k=args.k,
-        top_p=args.p,
-        repetition_penalty=args.repetition_penalty,
-        do_sample=True,
-        num_return_sequences=args.num_return_sequences,
-    )
+    def trace_handler(p):
+        output = p.key_averages().table(sort_by="self_cpu_time_total")
+        print(output)
+        import pathlib
+        timeline_dir = str(pathlib.Path.cwd()) + '/timeline/'
+        if not os.path.exists(timeline_dir):
+            try:
+                os.makedirs(timeline_dir)
+            except:
+                pass
+        timeline_file = timeline_dir + 'timeline-' + str(torch.backends.quantized.engine) + '-' + \
+                    args.model_name_or_path + '-' + str(p.step_num) + '-' + str(os.getpid()) + '.json'
+        p.export_chrome_trace(timeline_file)
+
+    def do_generate(p=None):
+        total_sample = 0
+        total_time = 0.0
+        if args.precision == "bfloat16":
+            print("---- Use bfloat16 AMP")
+            with torch.cpu.amp.autocast(enabled=True, dtype=torch.bfloat16):
+                for i in range(args.num_iter):
+                    elapsed = time.time()
+                    output_sequences = model.generate(
+                        input_ids=input_ids,
+                        max_length=args.length + len(encoded_prompt[0]),
+                        temperature=args.temperature,
+                        top_k=args.k,
+                        top_p=args.p,
+                        repetition_penalty=args.repetition_penalty,
+                        do_sample=True,
+                        num_return_sequences=args.num_return_sequences,
+                    )
+                    elapsed = time.time() - elapsed
+                    if args.profile:
+                        p.step()
+                    print("Iteration: {}, inference time: {} sec.".format(i, elapsed), flush=True)
+                    if i >= args.num_warmup:
+                        total_sample += args.num_return_sequences
+                        total_time += elapsed
+
+        elif args.precision == "float16":
+            print("---- Use float16 AMP")
+            with torch.cuda.amp.autocast(enabled=True, dtype=torch.float16):
+                for i in range(args.num_iter):
+                    elapsed = time.time()
+                    output_sequences = model.generate(
+                        input_ids=input_ids,
+                        max_length=args.length + len(encoded_prompt[0]),
+                        temperature=args.temperature,
+                        top_k=args.k,
+                        top_p=args.p,
+                        repetition_penalty=args.repetition_penalty,
+                        do_sample=True,
+                        num_return_sequences=args.num_return_sequences,
+                    )
+                    elapsed = time.time() - elapsed
+                    if args.profile:
+                        p.step()
+                    print("Iteration: {}, inference time: {} sec.".format(i, elapsed), flush=True)
+                    if i >= args.num_warmup:
+                        total_sample += args.num_return_sequences
+                        total_time += elapsed
+        else:
+            for i in range(args.num_iter):
+                elapsed = time.time()
+                output_sequences = model.generate(
+                    input_ids=input_ids,
+                    max_length=args.length + len(encoded_prompt[0]),
+                    temperature=args.temperature,
+                    top_k=args.k,
+                    top_p=args.p,
+                    repetition_penalty=args.repetition_penalty,
+                    do_sample=True,
+                    num_return_sequences=args.num_return_sequences,
+                )
+                elapsed = time.time() - elapsed
+                if args.profile:
+                    p.step()
+                print("Iteration: {}, inference time: {} sec.".format(i, elapsed), flush=True)
+                if i >= args.num_warmup:
+                    total_sample += args.num_return_sequences
+                    total_time += elapsed
+
+        latency = total_time / total_sample * 1000
+        throughput = total_sample / total_time
+        print("inference Latency: {:.3f} ms".format(latency))
+        print("inference Throughput: {} sequences/s".format(throughput))
+
+        return output_sequences
+
+    # generate
+    if args.profile:
+        with torch.profiler.profile(
+            activities=[torch.profiler.ProfilerActivity.CPU],
+            record_shapes=True,
+            schedule=torch.profiler.schedule(
+                wait=int(args.num_iter/2),
+                warmup=2,
+                active=1,
+            ),
+            on_trace_ready=trace_handler,
+        ) as p:
+            output_sequences = do_generate(p)
+    else:
+        output_sequences = do_generate()
 
     # Remove the batch dimension when returning multiple sequences
     if len(output_sequences.shape) > 2:
