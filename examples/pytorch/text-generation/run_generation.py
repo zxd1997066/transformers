@@ -39,6 +39,7 @@ from transformers import (
     XLMWithLMHeadModel,
     XLNetLMHeadModel,
     XLNetTokenizer,
+    GPTNeoForCausalLM,
 )
 
 
@@ -53,6 +54,7 @@ MAX_LENGTH = int(10000)  # Hardcoded max length to avoid infinite loop
 
 MODEL_CLASSES = {
     "gpt2": (GPT2LMHeadModel, GPT2Tokenizer),
+    "gpt-neo": (GPTNeoForCausalLM, GPT2Tokenizer),
     "ctrl": (CTRLLMHeadModel, CTRLTokenizer),
     "openai-gpt": (OpenAIGPTLMHeadModel, OpenAIGPTTokenizer),
     "xlnet": (XLNetLMHeadModel, XLNetTokenizer),
@@ -170,7 +172,7 @@ def main():
         help="Path to pre-trained model or shortcut name selected in the list: " + ", ".join(MODEL_CLASSES.keys()),
     )
 
-    parser.add_argument("--prompt", type=str, default="EleutherAI has")
+    parser.add_argument("--prompt", type=str, default="scientists discovered a herd of unicorns living in a remote")
     parser.add_argument("--length", type=int, default=20)
     parser.add_argument("--stop_token", type=str, default=None, help="Token at which text generation is stopped")
 
