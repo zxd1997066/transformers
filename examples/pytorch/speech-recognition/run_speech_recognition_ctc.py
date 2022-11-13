@@ -453,6 +453,7 @@ def main():
             split=data_args.eval_split_name,
             use_auth_token=data_args.use_auth_token,
         )
+        raw_datasets["train"] = raw_datasets["eval"]
 
         if data_args.max_eval_samples is not None:
             raw_datasets["eval"] = raw_datasets["eval"].select(range(data_args.max_eval_samples))
