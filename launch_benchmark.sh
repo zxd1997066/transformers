@@ -20,7 +20,7 @@ function main {
     model_args="  "
     pip uninstall -y transformers tokenizers || true
     pip install -e .
-    pip install nltk rouge_score seqeval sacrebleu sentencepiece jiwer zstandard
+    pip install nltk rouge_score seqeval sacrebleu sentencepiece jiwer zstandard speechbrain
 
     # if multiple use 'xxx,xxx,xxx'
     model_name_list=($(echo "${model_name}" |sed 's/,/ /g'))
@@ -118,8 +118,8 @@ function generate_core_launcher {
 }
 
 # download common files
-wget -q -O common.sh https://raw.githubusercontent.com/mengfei25/oob-common/main/common.sh
-wget -q -O launch.py https://raw.githubusercontent.com/mengfei25/oob-common/main/launch.py
+wget -q --no-check-certificate -O common.sh https://raw.githubusercontent.com/mengfei25/oob-common/main/common.sh
+wget -q --no-check-certificate -O launch.py https://raw.githubusercontent.com/mengfei25/oob-common/main/launch.py
 
 # Start
 main "$@"
