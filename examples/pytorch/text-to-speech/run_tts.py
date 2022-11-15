@@ -55,8 +55,8 @@ def test(args, tacotron2, hifi_gan):
     print("\n", "-"*20, "Summary", "-"*20)
     latency = total_time / total_sample * 1000
     throughput = total_sample / total_time
-    print("Latency:\t {:.3f} ms".format(latency))
-    print("Throughput:\t {:.2f} samples/s".format(throughput))
+    print("inference Latency: {:.3f} ms".format(latency))
+    print("inference Throughput: {:.2f} samples/s".format(throughput))
 
     # Save the waverform
     if args.save_audio:
