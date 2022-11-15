@@ -29,8 +29,7 @@ def test(args, tacotron2, hifi_gan):
                 mel_output, mel_length, alignment = tacotron2.encode_text(args.prompt)
                 # Running Vocoder (spectrogram-to-waveform)
                 waveforms = hifi_gan.decode_batch(mel_output)
-                if args.device == "cuda":
-                    torch.cuda.synchronize()
+                if torch.cuda.is_available(): torch.cuda.synchronize()
                 p.step()
                 elapsed = time.time() - elapsed
                 print("Iteration: {}, inference time: {} sec.".format(i, elapsed), flush=True)
@@ -44,8 +43,7 @@ def test(args, tacotron2, hifi_gan):
             mel_output, mel_length, alignment = tacotron2.encode_text(args.prompt)
             # Running Vocoder (spectrogram-to-waveform)
             waveforms = hifi_gan.decode_batch(mel_output)
-            if args.device == "cuda":
-                torch.cuda.synchronize()
+            if torch.cuda.is_available(): torch.cuda.synchronize()
             elapsed = time.time() - elapsed
             print("Iteration: {}, inference time: {} sec.".format(i, elapsed), flush=True)
             if i >= args.num_warmup:
