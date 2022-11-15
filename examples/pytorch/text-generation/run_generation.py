@@ -301,6 +301,7 @@ def main():
                         do_sample=True,
                         num_return_sequences=args.num_return_sequences,
                     )
+                    if torch.cuda.is_available(): torch.cuda.synchronize()
                     elapsed = time.time() - elapsed
                     if args.profile:
                         p.step()
@@ -324,6 +325,7 @@ def main():
                         do_sample=True,
                         num_return_sequences=args.num_return_sequences,
                     )
+                    if torch.cuda.is_available(): torch.cuda.synchronize()
                     elapsed = time.time() - elapsed
                     if args.profile:
                         p.step()
@@ -344,6 +346,7 @@ def main():
                     do_sample=True,
                     num_return_sequences=args.num_return_sequences,
                 )
+                if torch.cuda.is_available(): torch.cuda.synchronize()
                 elapsed = time.time() - elapsed
                 if args.profile:
                     p.step()

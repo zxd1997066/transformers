@@ -3109,6 +3109,7 @@ class Trainer:
             # Prediction step
             elapsed = time.time()
             loss, logits, labels = self.prediction_step(model, inputs, prediction_loss_only, ignore_keys=ignore_keys)
+            if torch.cuda.is_available(): torch.cuda.synchronize()
             elapsed = time.time() - elapsed
             if args.profile:
                 prof.step()
