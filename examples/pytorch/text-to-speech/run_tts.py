@@ -36,7 +36,7 @@ def test(args, tacotron2, hifi_gan):
                 print("Iteration: {}, inference time: {} sec.".format(i, elapsed), flush=True)
                 if i >= args.num_warmup:
                     total_time += elapsed
-                    total_sample += args.batch_size
+                    total_sample += 1
     else:
         for i in range(args.num_iter):
             elapsed = time.time()
@@ -50,7 +50,7 @@ def test(args, tacotron2, hifi_gan):
             print("Iteration: {}, inference time: {} sec.".format(i, elapsed), flush=True)
             if i >= args.num_warmup:
                 total_time += elapsed
-                total_sample += args.batch_size
+                total_sample += 1
 
     print("\n", "-"*20, "Summary", "-"*20)
     latency = total_time / total_sample * 1000
@@ -80,22 +80,26 @@ def trace_handler(p):
 if __name__ == '__main__':
     #
     parser = argparse.ArgumentParser(description='PyTorch Inference')
-    parser.add_argument("--arch", type=str, default='speechbrain/tts-tacotron2-ljspeech', help="model name")
+    parser.add_argument("--model_name_or_path", type=str, default='speechbrain/tts-tacotron2-ljspeech', help="model name")
     parser.add_argument('--prompt', default="Mary had a little lamb", type=str, help='input text')
     parser.add_argument('--device', default="cpu", type=str, help='cpu, cuda or xpu')
-    parser.add_argument('--batch_size', default=1, type=int, help='batch size')
     parser.add_argument('--precision', default="float32", type=str, help='precision')
     parser.add_argument('--channels_last', default=1, type=int, help='Use NHWC or not')
     parser.add_argument('--profile', action='store_true', default=False, help='collect timeline')
-    parser.add_argument('--save_audio', action='store_true', default=False, help='save_audio')
     parser.add_argument('--num_iter', default=1, type=int, help='test iterations')
     parser.add_argument('--num_warmup', default=0, type=int, help='test warmup')
+    parser.add_argument('--save_audio', action='store_true', default=False, help='save_audio')
+    #
+    parser.add_argument('--per_device_eval_batch_size', default=1, type=int, help='useless')
+    parser.add_argument('--do_eval', action='store_true', default=False, help='useless')
+    parser.add_argument('--overwrite_output_dir', action='store_true', default=False, help='useless')
+    parser.add_argument('--output_dir', default='', type=str, help='useless')
     args = parser.parse_args()
     print(args)
 
     # Intialize TTS (tacotron2) and Vocoder (HiFIGAN)
-    tacotron2 = Tacotron2.from_hparams(source=args.arch, savedir="/tmp/tmpdir_tts")
-    hifi_gan = HIFIGAN.from_hparams(source=args.arch, savedir="/tmp/tmpdir_vocoder")
+    tacotron2 = Tacotron2.from_hparams(source=args.model_name_or_path, savedir="/tmp/tmpdir_tts")
+    hifi_gan = HIFIGAN.from_hparams(source=args.model_name_or_path, savedir="/tmp/tmpdir_vocoder")
 
     if args.channels_last:
         tacotron2 = tacotron2.to(memory_format=torch.channels_last)
