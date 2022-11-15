@@ -365,7 +365,7 @@ def main():
     # generate
     if args.profile:
         with torch.profiler.profile(
-            activities=[torch.profiler.ProfilerActivity.CPU],
+            activities=[torch.profiler.ProfilerActivity.CPU, torch.profiler.ProfilerActivity.CUDA],
             record_shapes=True,
             schedule=torch.profiler.schedule(
                 wait=int(args.num_iter/2),
