@@ -20,7 +20,11 @@ function main {
     model_args="  "
     pip uninstall -y transformers tokenizers || true
     pip install -e .
-    pip install nltk rouge_score seqeval sacrebleu sentencepiece jiwer zstandard speechbrain
+    # huggingface models deps
+    pip install nltk rouge_score seqeval sacrebleu sentencepiece jiwer zstandard
+    # speechbrain and its deps
+    pip install --no-deps speechbrain
+    pip install hyperpyyaml joblib ruamel.yaml ruamel.yaml.clib scipy
 
     # if multiple use 'xxx,xxx,xxx'
     model_name_list=($(echo "${model_name}" |sed 's/,/ /g'))
