@@ -19,7 +19,7 @@ function main {
     fi
     model_args="  "
     pip uninstall -y transformers tokenizers || true
-    rm -rf ~/.cache/huggingface && rm -rf /tmp/tmpdir_* || true
+    rm -rf ~/.cache/huggingface && rm -rf /tmp/output* || true
     pip install -e .
     # huggingface models deps
     pip install nltk rouge_score seqeval sacrebleu sentencepiece jiwer zstandard
@@ -36,7 +36,7 @@ function main {
     do
         # cache
         python examples/${framework}/$(echo ${EXAMPLE_ARGS}) \
-            --do_eval --output_dir /tmp/output --overwrite_output_dir \
+            --do_eval --output_dir /tmp/output0 --overwrite_output_dir \
             --per_device_eval_batch_size 1 \
             --num_iter 3 --num_warmup 1 \
             --precision $precision \
@@ -82,7 +82,7 @@ function generate_core {
         fi
         printf " ${OOB_EXEC_HEADER} \
             python examples/${framework}/$(echo ${EXAMPLE_ARGS}) \
-                --do_eval --output_dir /tmp/output --overwrite_output_dir \
+                --do_eval --output_dir /tmp/output1 --overwrite_output_dir \
                 --per_device_eval_batch_size $batch_size \
                 --num_iter $num_iter --num_warmup $num_warmup \
                 --precision $precision \
@@ -110,7 +110,7 @@ function generate_core_launcher {
                     --ninstances ${#device_array[@]} \
                     --ncore_per_instance ${real_cores_per_instance} \
             examples/${framework}/$(echo ${EXAMPLE_ARGS}) \
-                --do_eval --output_dir /tmp/output --overwrite_output_dir \
+                --do_eval --output_dir /tmp/output1 --overwrite_output_dir \
                 --per_device_eval_batch_size $batch_size \
                 --num_iter $num_iter --num_warmup $num_warmup \
                 --precision $precision \

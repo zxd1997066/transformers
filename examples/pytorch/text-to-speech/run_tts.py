@@ -96,8 +96,9 @@ if __name__ == '__main__':
     print(args)
 
     # Intialize TTS (tacotron2) and Vocoder (HiFIGAN)
-    tacotron2 = Tacotron2.from_hparams(source=args.model_name_or_path, savedir="/tmp/tmpdir_tts")
-    hifi_gan = HIFIGAN.from_hparams(source=args.model_name_or_path, savedir="/tmp/tmpdir_vocoder")
+    savedir = args.output_dir + '/' + str(os.getpid())
+    tacotron2 = Tacotron2.from_hparams(source=args.model_name_or_path, savedir=savedir + "/tmpdir_tts")
+    hifi_gan = HIFIGAN.from_hparams(source=args.model_name_or_path, savedir=savedir + "/tmpdir_vocoder")
 
     if args.channels_last:
         tacotron2 = tacotron2.to(memory_format=torch.channels_last)
