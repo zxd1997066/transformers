@@ -19,7 +19,7 @@ function main {
     fi
     model_args="  "
     pip uninstall -y transformers tokenizers || true
-    rm -rf ~/.cache/huggingface || true
+    rm -rf ~/.cache/huggingface && rm -rf /tmp/tmpdir_* || true
     pip install -e .
     # huggingface models deps
     pip install nltk rouge_score seqeval sacrebleu sentencepiece jiwer zstandard
