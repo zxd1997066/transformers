@@ -9,6 +9,13 @@ from speechbrain.pretrained import Tacotron2
 from speechbrain.pretrained import HIFIGAN
 
 
+MODEL_CLASSES = {
+    "speechbrain/tts-tacotron2-ljspeech": (
+        Tacotron2.from_hparams(source="speechbrain/tts-tacotron2-ljspeech", savedir="tmpdir_tts"),
+        HIFIGAN.from_hparams(source="speechbrain/tts-hifigan-ljspeech", savedir="tmpdir_vocoder")
+    )
+}
+
 def test(args, tacotron2, hifi_gan):
     total_sample = 0
     total_time = 0.0
@@ -96,9 +103,9 @@ if __name__ == '__main__':
     print(args)
 
     # Intialize TTS (tacotron2) and Vocoder (HiFIGAN)
-    savedir = args.output_dir + '/' + str(os.getpid())
-    tacotron2 = Tacotron2.from_hparams(source=args.model_name_or_path, savedir=savedir + "/tmpdir_tts")
-    hifi_gan = HIFIGAN.from_hparams(source=args.model_name_or_path, savedir=savedir + "/tmpdir_vocoder")
+    # tacotron2 = Tacotron2.from_hparams(source=args.model_name_or_path, savedir="tmpdir_tts")
+    # hifi_gan = HIFIGAN.from_hparams(source=args.model_name_or_path, savedir="tmpdir_vocoder")
+    tacotron2, hifi_gan = MODEL_CLASSES[args.model_name_or_path]
 
     if args.channels_last:
         tacotron2 = tacotron2.to(memory_format=torch.channels_last)
