@@ -26,6 +26,7 @@ function main {
     # speechbrain and its deps
     pip install --no-deps speechbrain
     pip install hyperpyyaml joblib ruamel.yaml ruamel.yaml.clib scipy
+    pip install librosa
 
     # if multiple use 'xxx,xxx,xxx'
     model_name_list=($(echo "${model_name}" |sed 's/,/ /g'))
