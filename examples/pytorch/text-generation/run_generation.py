@@ -312,7 +312,7 @@ def main():
 
         elif args.precision == "float16":
             print("---- Use float16 AMP")
-            with torch.cuda.amp.autocast(enabled=True, dtype=torch.float16):
+            with torch.cpu.amp.autocast(enabled=True, dtype=torch.half):
                 for i in range(args.num_iter):
                     elapsed = time.time()
                     output_sequences = model.generate(

@@ -2847,7 +2847,7 @@ class Trainer:
                         )
                 elif self.args.precision == "float16":
                     print("---- Use cuda AMP float16")
-                    with torch.cuda.amp.autocast(enabled=True, dtype=torch.float16):
+                    with torch.cpu.amp.autocast(enabled=True, dtype=torch.half):
                         output = eval_loop(
                             eval_dataloader,
                             description="Evaluation",
@@ -2884,7 +2884,7 @@ class Trainer:
                     )
             elif self.args.precision == "float16":
                 print("---- Use cuda AMP float16")
-                with torch.cuda.amp.autocast(enabled=True, dtype=torch.float16):
+                with torch.cpu.amp.autocast(enabled=True, dtype=torch.half):
                     output = eval_loop(
                         eval_dataloader,
                         description="Evaluation",
