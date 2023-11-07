@@ -549,6 +549,8 @@ class TrainingArguments:
     precision: str = field(default='float32', metadata={"help": "precision."})
     channels_last: int = field(default=1, metadata={"help": "channels_last."})
     profile: bool = field(default=False, metadata={"help": "profile."})
+    compile: bool = field(default=False, metadata={"help": "compile."})
+    backend: str = field(default='inductor', metadata={"help": "backend."})
     ipex: bool = field(default=False, metadata={"help": "ipex."})
     jit: bool = field(default=False, metadata={"help": "jit."})
     do_train: bool = field(default=False, metadata={"help": "Whether to run training."})
