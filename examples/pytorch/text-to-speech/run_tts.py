@@ -19,6 +19,8 @@ MODEL_CLASSES = {
 def test(args, tacotron2, hifi_gan):
     total_sample = 0
     total_time = 0.0
+    if args.compile:
+        tacotron2.encode_text = torch.compile(tacotron2.encode_text, backend=args.backend, options={"freezing": True})
     if args.profile:
         with torch.profiler.profile(
             activities=[torch.profiler.ProfilerActivity.CPU, torch.profiler.ProfilerActivity.CUDA],
@@ -99,6 +101,10 @@ if __name__ == '__main__':
     parser.add_argument('--do_eval', action='store_true', default=False, help='useless')
     parser.add_argument('--overwrite_output_dir', action='store_true', default=False, help='useless')
     parser.add_argument('--output_dir', default='', type=str, help='useless')
+    parser.add_argument("--compile", action='store_true', default=False,
+                    help="enable torch.compile")
+    parser.add_argument("--backend", type=str, default='inductor',
+                    help="enable torch.compile backend")
     args = parser.parse_args()
     print(args)
 
