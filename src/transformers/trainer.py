@@ -1326,8 +1326,8 @@ class Trainer:
         return model
 
     def _wrap_model(self, model, training=True, dataloader=None):
-        if self.args.torch_compile:
-            model = torch.compile(model, backend=self.args.torch_compile_backend, mode=self.args.torch_compile_mode)
+        if self.args.compile:
+            model = torch.compile(model, backend=args.backend, options={"freezing": True})
 
         if self.args.use_ipex:
             dtype = torch.bfloat16 if self.use_cpu_amp else torch.float32
@@ -3055,8 +3055,6 @@ class Trainer:
         logger.info(f"  Batch size = {batch_size}")
 
         model.eval()
-        if args.compile:
-            model = torch.compile(model, backend=args.backend, options={"freezing": True})
         with torch.no_grad():
             if args.channels_last:
                 try:
