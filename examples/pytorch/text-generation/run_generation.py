@@ -290,7 +290,8 @@ def main():
     def do_generate(p=None):
         total_sample = 0
         total_time = 0.0
-        model.generate = torch.compile(model.generate, backend=args.backend, options={"freezing": True})
+        if args.compile:
+            model.generate = torch.compile(model.generate, backend=args.backend, options={"freezing": True})
         if args.precision == "bfloat16":
             print("---- Use bfloat16 AMP")
             with torch.cpu.amp.autocast(enabled=True, dtype=torch.bfloat16):
