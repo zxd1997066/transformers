@@ -3055,6 +3055,8 @@ class Trainer:
         logger.info(f"  Batch size = {batch_size}")
 
         model.eval()
+        if args.compile:
+            model = torch.compile(model, backend=args.backend, options={"freezing": True})
         with torch.no_grad():
             if args.channels_last:
                 try:
