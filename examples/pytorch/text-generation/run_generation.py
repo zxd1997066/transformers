@@ -210,6 +210,10 @@ def main():
         action="store_true",
         help="Whether to use 16-bit (mixed) precision (through NVIDIA apex) instead of 32-bit",
     )
+    parser.add_argument("--compile", action='store_true', default=False,
+                    help="enable torch.compile")
+    parser.add_argument("--backend", type=str, default='inductor',
+                    help="enable torch.compile backend")
     args = parser.parse_args()
 
     args.device = torch.device("cuda" if torch.cuda.is_available() and not args.no_cuda else "cpu")
@@ -286,6 +290,7 @@ def main():
     def do_generate(p=None):
         total_sample = 0
         total_time = 0.0
+        model.generate = torch.compile(model.generate, backend=args.backend, options={"freezing": True})
         if args.precision == "bfloat16":
             print("---- Use bfloat16 AMP")
             with torch.cpu.amp.autocast(enabled=True, dtype=torch.bfloat16):
