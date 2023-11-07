@@ -3116,6 +3116,7 @@ class Trainer:
             inputs_decode = self._prepare_input(inputs["input_ids"]) if args.include_inputs_for_metrics else None
             print("Iteration: {}, inference time: {} sec.".format(step, elapsed), flush=True)
             if step >= args.num_warmup:
+                print(elapsed)
                 total_time += elapsed
                 total_sample += args.per_device_eval_batch_size
 
