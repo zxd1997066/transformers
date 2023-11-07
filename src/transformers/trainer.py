@@ -1327,7 +1327,7 @@ class Trainer:
 
     def _wrap_model(self, model, training=True, dataloader=None):
         if self.args.compile:
-            model = torch.compile(model, backend=args.backend, options={"freezing": True})
+            model = torch.compile(model, backend=self.args.backend, options={"freezing": True})
 
         if self.args.use_ipex:
             dtype = torch.bfloat16 if self.use_cpu_amp else torch.float32
