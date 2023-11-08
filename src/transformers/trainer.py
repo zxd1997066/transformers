@@ -1326,8 +1326,10 @@ class Trainer:
         return model
 
     def _wrap_model(self, model, training=True, dataloader=None):
+        model = model.to(self.args.device_oob)
         if self.args.compile:
             model = torch.compile(model, backend=self.args.backend, options={"freezing": True})
+
 
         if self.args.use_ipex:
             dtype = torch.bfloat16 if self.use_cpu_amp else torch.float32
@@ -2846,18 +2848,32 @@ class Trainer:
                             prof=prof,
                         )
                 elif self.args.precision == "float16":
-                    print("---- Use cuda AMP float16")
-                    with torch.cpu.amp.autocast(enabled=True, dtype=torch.half):
-                        output = eval_loop(
-                            eval_dataloader,
-                            description="Evaluation",
-                            # No point gathering the predictions if there are no metrics, otherwise we defer to
-                            # self.args.prediction_loss_only
-                            prediction_loss_only=True if self.compute_metrics is None else None,
-                            ignore_keys=ignore_keys,
-                            metric_key_prefix=metric_key_prefix,
-                            prof=prof,
-                        )
+                    if self.args.device_oob == "cpu":
+                        print("---- Use cpu AMP float16")
+                        with torch.cpu.amp.autocast(enabled=True, dtype=torch.half):
+                            output = eval_loop(
+                                eval_dataloader,
+                                description="Evaluation",
+                                # No point gathering the predictions if there are no metrics, otherwise we defer to
+                                # self.args.prediction_loss_only
+                                prediction_loss_only=True if self.compute_metrics is None else None,
+                                ignore_keys=ignore_keys,
+                                metric_key_prefix=metric_key_prefix,
+                                prof=prof,
+                            )
+                    elif self.args.device_oob == "cuda":
+                        print("---- Use cuda AMP float16")
+                        with torch.cuda.amp.autocast(enabled=True, dtype=torch.half):
+                            output = eval_loop(
+                                eval_dataloader,
+                                description="Evaluation",
+                                # No point gathering the predictions if there are no metrics, otherwise we defer to
+                                # self.args.prediction_loss_only
+                                prediction_loss_only=True if self.compute_metrics is None else None,
+                                ignore_keys=ignore_keys,
+                                metric_key_prefix=metric_key_prefix,
+                                prof=prof,
+                            )
                 else:
                     output = eval_loop(
                         eval_dataloader,
@@ -2883,17 +2899,30 @@ class Trainer:
                         metric_key_prefix=metric_key_prefix,
                     )
             elif self.args.precision == "float16":
-                print("---- Use cuda AMP float16")
-                with torch.cpu.amp.autocast(enabled=True, dtype=torch.half):
-                    output = eval_loop(
-                        eval_dataloader,
-                        description="Evaluation",
-                        # No point gathering the predictions if there are no metrics, otherwise we defer to
-                        # self.args.prediction_loss_only
-                        prediction_loss_only=True if self.compute_metrics is None else None,
-                        ignore_keys=ignore_keys,
-                        metric_key_prefix=metric_key_prefix,
-                    )
+                if self.args.device_oob == "cpu":
+                    print("---- Use cpu AMP float16")
+                    with torch.cpu.amp.autocast(enabled=True, dtype=torch.half):
+                        output = eval_loop(
+                            eval_dataloader,
+                            description="Evaluation",
+                            # No point gathering the predictions if there are no metrics, otherwise we defer to
+                            # self.args.prediction_loss_only
+                            prediction_loss_only=True if self.compute_metrics is None else None,
+                            ignore_keys=ignore_keys,
+                            metric_key_prefix=metric_key_prefix,
+                        )
+                elif self.args.device_oob == "cuda":
+                    print("---- Use cuda AMP float16")
+                    with torch.cuda.amp.autocast(enabled=True, dtype=torch.half):
+                        output = eval_loop(
+                            eval_dataloader,
+                            description="Evaluation",
+                            # No point gathering the predictions if there are no metrics, otherwise we defer to
+                            # self.args.prediction_loss_only
+                            prediction_loss_only=True if self.compute_metrics is None else None,
+                            ignore_keys=ignore_keys,
+                            metric_key_prefix=metric_key_prefix
+                        )
             else:
                 output = eval_loop(
                     eval_dataloader,
@@ -3108,6 +3137,7 @@ class Trainer:
 
             # Prediction step
             elapsed = time.time()
+            inputs = {k: v.to(self.args.device_oob) for k,v in inputs.items()} 
             loss, logits, labels = self.prediction_step(model, inputs, prediction_loss_only, ignore_keys=ignore_keys)
             if torch.cuda.is_available(): torch.cuda.synchronize()
             elapsed = time.time() - elapsed

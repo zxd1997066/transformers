@@ -550,6 +550,7 @@ class TrainingArguments:
     channels_last: int = field(default=1, metadata={"help": "channels_last."})
     profile: bool = field(default=False, metadata={"help": "profile."})
     compile: bool = field(default=False, metadata={"help": "compile."})
+    device_oob: str = field(default='cpu', metadata={"help": "device. cpu/cuda"})
     backend: str = field(default='inductor', metadata={"help": "backend."})
     ipex: bool = field(default=False, metadata={"help": "ipex."})
     jit: bool = field(default=False, metadata={"help": "jit."})
