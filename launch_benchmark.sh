@@ -42,6 +42,7 @@ function main {
             --num_iter 3 --num_warmup 1 \
             --precision $precision \
             --channels_last $channels_last \
+            --device_oob $device \
             ${addtion_options} || true
         #
         for batch_size in ${batch_size_list[@]}
@@ -88,6 +89,7 @@ function generate_core {
                 --num_iter $num_iter --num_warmup $num_warmup \
                 --precision $precision \
                 --channels_last $channels_last \
+                --device_oob $device \
                 ${addtion_options} \
         > ${log_file} 2>&1 &  \n" |tee -a ${excute_cmd_file}
         if [ "${numa_nodes_use}" == "0" ];then

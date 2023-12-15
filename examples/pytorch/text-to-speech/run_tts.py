@@ -101,6 +101,7 @@ if __name__ == '__main__':
     parser.add_argument('--do_eval', action='store_true', default=False, help='useless')
     parser.add_argument('--overwrite_output_dir', action='store_true', default=False, help='useless')
     parser.add_argument('--output_dir', default='', type=str, help='useless')
+    parser.add_argument("--device_oob", type=str, default="cpu")
     parser.add_argument("--compile", action='store_true', default=False,
                     help="enable torch.compile")
     parser.add_argument("--backend", type=str, default='inductor',

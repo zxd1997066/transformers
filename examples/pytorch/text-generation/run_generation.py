@@ -210,6 +210,7 @@ def main():
         action="store_true",
         help="Whether to use 16-bit (mixed) precision (through NVIDIA apex) instead of 32-bit",
     )
+    parser.add_argument("--device_oob", type=str, default="cpu")
     parser.add_argument("--compile", action='store_true', default=False,
                     help="enable torch.compile")
     parser.add_argument("--backend", type=str, default='inductor',
