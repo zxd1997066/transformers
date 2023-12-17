@@ -24,6 +24,9 @@ import os
 import sys
 from dataclasses import dataclass, field
 from typing import Optional
+import torch._inductor
+torch._inductor.config.profiler_mark_wrapper_call = True
+torch._inductor.config.cpp.enable_kernel_profile = True
 
 import datasets
 import numpy as np
