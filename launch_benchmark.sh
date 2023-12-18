@@ -27,6 +27,9 @@ function main {
     pip install --no-deps speechbrain
     pip install hyperpyyaml joblib ruamel.yaml ruamel.yaml.clib scipy
     pip install librosa soundfile
+    if [ "${device}" == "cuda" ];then
+        pip install typing_extensions==4.7.1
+    fi
 
     # if multiple use 'xxx,xxx,xxx'
     model_name_list=($(echo "${model_name}" |sed 's/,/ /g'))
