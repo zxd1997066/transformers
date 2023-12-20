@@ -53,7 +53,7 @@ function main {
             # clean workspace
             logs_path_clean
             # generate launch script for multiple instance
-            export TORCH_LOGS="recompiles"
+            # export TORCH_LOGS="recompiles"
             if [ "${OOB_USE_LAUNCHER}" == "1" ] && [ "${device}" != "cuda" ];then
                 generate_core_launcher
             else
