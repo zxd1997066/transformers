@@ -28,7 +28,7 @@ function main {
     pip install hyperpyyaml joblib ruamel.yaml ruamel.yaml.clib scipy
     pip install librosa soundfile
     if [ "${device}" == "cuda" ];then
-        pip install typing_extensions==4.7.1
+        pip install typing_extensions==4.7.1 opencv-python==4.8.0.74 opencv-python-headless==4.8.0.74 
     fi
 
     # if multiple use 'xxx,xxx,xxx'
