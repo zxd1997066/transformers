@@ -3260,7 +3260,8 @@ class Trainer:
             logger.info("  Num examples: Unknown")
         logger.info(f"  Batch size = {batch_size}")
 
-        model.eval()
+        if self.args.torch_compile_quant is None:
+            model.eval()
 
         self.callback_handler.eval_dataloader = dataloader
         # Do this before wrapping.

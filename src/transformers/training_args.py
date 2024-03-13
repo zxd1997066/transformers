@@ -1279,6 +1279,13 @@ class TrainingArguments:
             "help": "Which mode to use with `torch.compile`, passing one will trigger a model compilation.",
         },
     )
+    torch_compile_quant: Optional[str] = field(
+        default=None,
+        metadata={
+            "help": "Which quantization mode to use with `torch.compile` inductor backend, passing one will trigger a model compilation.",
+            "choices": ["ptq", "ptq_dynamic", "PTQ", "PTQ_DYNAMIC"],
+        },
+    )
 
     dispatch_batches: Optional[bool] = field(
         default=None,
@@ -1526,7 +1533,7 @@ class TrainingArguments:
                 FutureWarning,
             )
             self.torch_compile_backend = self.torchdynamo
-        if (self.torch_compile_mode is not None or self.torch_compile_backend is not None) and not self.torch_compile:
+        if (self.torch_compile_mode is not None or self.torch_compile_backend is not None or self.torch_compile_quant is not None) and not self.torch_compile:
             self.torch_compile = True
         if self.torch_compile and self.torch_compile_backend is None:
             self.torch_compile_backend = "inductor"
@@ -1538,6 +1545,8 @@ class TrainingArguments:
             os.environ[prefix + "BACKEND"] = self.torch_compile_backend
             if self.torch_compile_mode is not None:
                 os.environ[prefix + "MODE"] = self.torch_compile_mode
+            if self.torch_compile_quant is not None:
+                os.environ[prefix + "QUANT"] = self.torch_compile_quant
 
         if self.framework == "pt" and is_torch_available() and self.torch_compile:
             if is_torch_tf32_available():
