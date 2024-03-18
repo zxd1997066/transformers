@@ -7,7 +7,7 @@ function main {
     init_params $@
     fetch_device_info
     set_environment
-
+    export TORCH_COMPILE_DEBUG=1
     # requirements
     if [ "${EXAMPLE_ARGS}" == "" ];then
         set +x
