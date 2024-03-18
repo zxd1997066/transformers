@@ -1328,8 +1328,8 @@ class Trainer:
     def _wrap_model(self, model, training=True, dataloader=None):
         model = model.to(self.args.device_oob)
         if self.args.compile:
-            # model = torch.compile(model, backend=self.args.backend, options={"freezing": True})
-            model = torch.compile(model, backend=self.args.backend, options={"freezing": True}, dynamic=True)
+            model = torch.compile(model, backend=self.args.backend, options={"freezing": True})
+            # model = torch.compile(model, backend=self.args.backend, options={"freezing": True}, dynamic=True)
 
 
         if self.args.use_ipex:
