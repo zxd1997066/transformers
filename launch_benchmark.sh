@@ -51,11 +51,7 @@ function main {
         for batch_size in ${batch_size_list[@]}
         do
             if [ $batch_size -le 0 ];then
-                if [[ "${model_name}" =~ ^(casual-language-modeling+xlm-roberta-base|image-classification+microsoft-beit-large-patch16-224-pt22k-ft22k|masked-language-modeling+bert-base-cased|masked-language-modeling+distilbert-base-cased|s2t_transformer_xs|speech-recognition+facebook-wav2vec2-base-960h|text-classification+albert-base-v2|text-classification+allenai-longformer-base-4096|text-classification+bert-large-cased|text-classification+distilbert-base-uncased|text-classification+facebook-bart-large|text-classification+roberta-base|text-classification+xlm-roberta-base|text-classification+xlnet-base-cased)$ ]];then
-                    batch_size=8
-                else
-                    batch_size=32
-                fi
+                batch_size=8
             fi
             # clean workspace
             logs_path_clean
