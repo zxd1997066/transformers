@@ -95,7 +95,7 @@ function generate_core {
                 --num_iter $num_iter --num_warmup $num_warmup \
                 --precision $precision \
                 --channels_last $channels_last \
-                --device_oob $device --pad_to_max_length \
+                --device_oob $device \
                 ${addtion_options} \
         > ${log_file} 2>&1 &  \n" |tee -a ${excute_cmd_file}
         if [ "${numa_nodes_use}" == "0" ];then
@@ -123,7 +123,7 @@ function generate_core_launcher {
                 --per_device_eval_batch_size $batch_size \
                 --num_iter $num_iter --num_warmup $num_warmup \
                 --precision $precision \
-                --channels_last $channels_last --pad_to_max_length \
+                --channels_last $channels_last \
                 ${addtion_options} \
         > /dev/null 2>&1 &  \n" |tee -a ${excute_cmd_file}
         break
