@@ -55,6 +55,11 @@ function main {
             if [ $batch_size -le 0 ];then
                 batch_size=32
             fi
+            if [ "${device}" == "cuda" ];then
+                if [ "${model_name}" == "casual-language-modeling+xlm-roberta-base" ];then
+                    batch_size=16
+                fi
+            fi
             # clean workspace
             logs_path_clean
             # generate launch script for multiple instance
