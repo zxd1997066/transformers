@@ -18,6 +18,9 @@ function main {
     fi
     model_args="  "
     pip uninstall -y transformers tokenizers || true
+    if [ "${device}" == "cuda" ];then
+        pip uninstall -y transformer-engine
+    fi
     rm -rf ~/.cache/huggingface && rm -rf /tmp/output* || true
     pip install -e .
     # huggingface models deps
