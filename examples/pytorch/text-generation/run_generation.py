@@ -297,7 +297,7 @@ def main():
             # model.generate = torch.compile(model.generate, backend=args.backend, options={"freezing": True}, dynamic=True)
         if args.precision == "bfloat16":
             print("---- Use bfloat16 AMP")
-            with torch.cpu.amp.autocast(enabled=True, dtype=torch.bfloat16):
+            with torch.autocast(enabled=True, device_type=args.device_oob, dtype=torch.bfloat16):
                 for i in range(args.num_iter):
                     elapsed = time.time()
                     output_sequences = model.generate(
@@ -321,7 +321,7 @@ def main():
 
         elif args.precision == "float16":
             print("---- Use float16 AMP")
-            with torch.cpu.amp.autocast(enabled=True, dtype=torch.half):
+            with torch.autocast(enabled=True, device_type=args.device_oob, dtype=torch.half):
                 for i in range(args.num_iter):
                     elapsed = time.time()
                     output_sequences = model.generate(

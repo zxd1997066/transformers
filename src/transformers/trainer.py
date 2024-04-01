@@ -2840,7 +2840,7 @@ class Trainer:
             ) as prof:
                 if self.args.precision == "bfloat16":
                     print("---- Use cpu AMP bfloat16")
-                    with torch.cpu.amp.autocast(enabled=True, dtype=torch.bfloat16):
+                    with torch.autocast(enabled=True, device_type=self.args.device_oob, dtype=torch.bfloat16):
                         output = eval_loop(
                             eval_dataloader,
                             description="Evaluation",
@@ -2892,7 +2892,7 @@ class Trainer:
         else:
             if self.args.precision == "bfloat16":
                 print("---- Use cpu AMP bfloat16")
-                with torch.cpu.amp.autocast(enabled=True, dtype=torch.bfloat16):
+                with torch.autocast(enabled=True, device_type=self.args.device_oob, dtype=torch.bfloat16):
                     output = eval_loop(
                         eval_dataloader,
                         description="Evaluation",

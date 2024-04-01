@@ -122,11 +122,11 @@ if __name__ == '__main__':
     # start test
     if args.precision == "bfloat16":
         print("---- Use AMP bfloat16")
-        with torch.cpu.amp.autocast(enabled=True, dtype=torch.bfloat16):
+        with torch.autocast(enabled=True, device_type=args.device_oob, dtype=torch.bfloat16):
             test(args, tacotron2, hifi_gan)
     elif args.precision == "float16":
         print("---- Use AMP float16")
-        with torch.cpu.amp.autocast(enabled=True, dtype=torch.half):
+        with torch.autocast(enabled=True, device_type=args.device_oob, dtype=torch.half):
             test(args, tacotron2, hifi_gan)
     else:
         test(args, tacotron2, hifi_gan)
