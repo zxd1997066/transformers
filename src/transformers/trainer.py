@@ -3125,6 +3125,8 @@ class Trainer:
         total_time = 0.0
         total_sample = 0
         for step, inputs in enumerate(dataloader):
+            break
+        for step in range(args.num_iter):
             if args.num_iter > 0 and step >= args.num_iter: break
             if args.channels_last:
                 try:
@@ -3143,6 +3145,7 @@ class Trainer:
             elapsed = time.time()
             inputs = {k: v.to(self.args.device_oob) for k,v in inputs.items()} 
             loss, logits, labels = self.prediction_step(model, inputs, prediction_loss_only, ignore_keys=ignore_keys)
+            inputs = {k: v.to("cpu") for k,v in inputs.items()} 
             if torch.cuda.is_available(): torch.cuda.synchronize()
             elapsed = time.time() - elapsed
             if args.profile:
