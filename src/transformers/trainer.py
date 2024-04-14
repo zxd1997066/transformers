@@ -2825,8 +2825,8 @@ class Trainer:
 
         eval_loop = self.prediction_loop if self.args.use_legacy_prediction_loop else self.evaluation_loop
         if self.args.profile:
-            torch._inductor.config.profiler_mark_wrapper_call = True
-            torch._inductor.config.cpp.enable_kernel_profile = True
+            # torch._inductor.config.profiler_mark_wrapper_call = True
+            # torch._inductor.config.cpp.enable_kernel_profile = True
             prof_act = [torch.profiler.ProfilerActivity.CUDA, torch.profiler.ProfilerActivity.CPU]
             with torch.profiler.profile(
                 activities=prof_act,
