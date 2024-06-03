@@ -3103,7 +3103,7 @@ class Trainer:
         self._memory_tracker.start()
 
         eval_dataloader = self.get_eval_dataloader(eval_dataset)
-        start_time = time.time()
+        # start_time = time.time()
 
         eval_loop = self.prediction_loop if self.args.use_legacy_prediction_loop else self.evaluation_loop
         output = eval_loop(
@@ -3116,17 +3116,17 @@ class Trainer:
             metric_key_prefix=metric_key_prefix,
         )
 
-        total_batch_size = self.args.eval_batch_size * self.args.world_size
-        if f"{metric_key_prefix}_jit_compilation_time" in output.metrics:
-            start_time += output.metrics[f"{metric_key_prefix}_jit_compilation_time"]
-        output.metrics.update(
-            speed_metrics(
-                metric_key_prefix,
-                start_time,
-                num_samples=output.num_samples,
-                num_steps=math.ceil(output.num_samples / total_batch_size),
-            )
-        )
+        # total_batch_size = self.args.eval_batch_size * self.args.world_size
+        # if f"{metric_key_prefix}_jit_compilation_time" in output.metrics:
+        #     start_time += output.metrics[f"{metric_key_prefix}_jit_compilation_time"]
+        # output.metrics.update(
+        #     speed_metrics(
+        #         metric_key_prefix,
+        #         start_time,
+        #         num_samples=output.num_samples,
+        #         num_steps=math.ceil(output.num_samples / total_batch_size),
+        #     )
+        # )
 
         self.log(output.metrics)
 
@@ -3179,23 +3179,23 @@ class Trainer:
         self._memory_tracker.start()
 
         test_dataloader = self.get_test_dataloader(test_dataset)
-        start_time = time.time()
+        # start_time = time.time()
 
         eval_loop = self.prediction_loop if self.args.use_legacy_prediction_loop else self.evaluation_loop
         output = eval_loop(
             test_dataloader, description="Prediction", ignore_keys=ignore_keys, metric_key_prefix=metric_key_prefix
         )
-        total_batch_size = self.args.eval_batch_size * self.args.world_size
-        if f"{metric_key_prefix}_jit_compilation_time" in output.metrics:
-            start_time += output.metrics[f"{metric_key_prefix}_jit_compilation_time"]
-        output.metrics.update(
-            speed_metrics(
-                metric_key_prefix,
-                start_time,
-                num_samples=output.num_samples,
-                num_steps=math.ceil(output.num_samples / total_batch_size),
-            )
-        )
+        # total_batch_size = self.args.eval_batch_size * self.args.world_size
+        # if f"{metric_key_prefix}_jit_compilation_time" in output.metrics:
+        #     start_time += output.metrics[f"{metric_key_prefix}_jit_compilation_time"]
+        # output.metrics.update(
+        #     speed_metrics(
+        #         metric_key_prefix,
+        #         start_time,
+        #         num_samples=output.num_samples,
+        #         num_steps=math.ceil(output.num_samples / total_batch_size),
+        #     )
+        # )
 
         self.control = self.callback_handler.on_predict(self.args, self.state, self.control, output.metrics)
         self._memory_tracker.stop_and_update_metrics(output.metrics)
@@ -3285,6 +3285,7 @@ class Trainer:
         # Will be useful when we have an iterable dataset so don't know its length.
 
         observed_num_examples = 0
+        start_time = time.time()
         # Main evaluation loop
         for step, inputs in enumerate(dataloader):
             # Update the observed num examples
@@ -3414,7 +3415,17 @@ class Trainer:
         for key in list(metrics.keys()):
             if not key.startswith(f"{metric_key_prefix}_"):
                 metrics[f"{metric_key_prefix}_{key}"] = metrics.pop(key)
-
+        total_batch_size = self.args.eval_batch_size * self.args.world_size
+        if f"{metric_key_prefix}_jit_compilation_time" in metrics:
+            start_time += metrics[f"{metric_key_prefix}_jit_compilation_time"]
+            metrics.update(
+                speed_metrics(
+                    metric_key_prefix,
+                    start_time,
+                    num_samples=num_samples,
+                    num_steps=math.ceil(num_samples / total_batch_size),
+                )
+            )
         return EvalLoopOutput(predictions=all_preds, label_ids=all_labels, metrics=metrics, num_samples=num_samples)
 
     def _nested_gather(self, tensors, name=None):
