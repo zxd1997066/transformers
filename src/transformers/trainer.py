@@ -1329,7 +1329,7 @@ class Trainer:
     def _wrap_model(self, model, training=True, dataloader=None):
         model = model.to(self.args.device_oob)
         if self.args.compile:
-            if self.args.backend == "cudagraphs"
+            if self.args.backend == "cudagraphs":
                 model = torch.compile(model, backend=self.args.backend)
             else:
                 model = torch.compile(model, backend=self.args.backend, options={"freezing": True})
