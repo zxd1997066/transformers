@@ -20,7 +20,10 @@ def test(args, tacotron2, hifi_gan):
     total_sample = 0
     total_time = 0.0
     if args.compile:
-        tacotron2.encode_text = torch.compile(tacotron2.encode_text, backend=args.backend, options={"freezing": True})
+        if args.backend == "cudagraphs":
+            tacotron2.encode_text = torch.compile(tacotron2.encode_text, backend=args.backend)
+        else:
+            tacotron2.encode_text = torch.compile(tacotron2.encode_text, backend=args.backend, options={"freezing": True})
     if args.profile:
         with torch.profiler.profile(
             activities=[torch.profiler.ProfilerActivity.CPU, torch.profiler.ProfilerActivity.CUDA],

@@ -293,7 +293,10 @@ def main():
         total_sample = 0
         total_time = 0.0
         if args.compile:
-            model.generate = torch.compile(model.generate, backend=args.backend, options={"freezing": True})
+            if args.backend == "cudagraphs":
+                model.generate = torch.compile(model.generate, backend=args.backend)
+            else:
+                model.generate = torch.compile(model.generate, backend=args.backend, options={"freezing": True})
             # model.generate = torch.compile(model.generate, backend=args.backend, options={"freezing": True}, dynamic=True)
         if args.precision == "bfloat16":
             print("---- Use bfloat16 AMP")
