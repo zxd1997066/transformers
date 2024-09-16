@@ -109,6 +109,8 @@ if __name__ == '__main__':
                     help="enable torch.compile")
     parser.add_argument("--backend", type=str, default='inductor',
                     help="enable torch.compile backend")
+    parser.add_argument("--triton_cpu", action='store_true', default=False,
+                    help="enable triton_cpu")
     args = parser.parse_args()
     print(args)
 
@@ -116,7 +118,10 @@ if __name__ == '__main__':
     # tacotron2 = Tacotron2.from_hparams(source=args.model_name_or_path, savedir="tmpdir_tts")
     # hifi_gan = HIFIGAN.from_hparams(source=args.model_name_or_path, savedir="tmpdir_vocoder")
     tacotron2, hifi_gan = MODEL_CLASSES[args.model_name_or_path]
-
+    if args.triton_cpu:
+        print("run with triton cpu backend")
+        import torch._inductor.config
+        torch._inductor.config.cpu_backend="triton"
     if args.channels_last:
         tacotron2 = tacotron2.to(memory_format=torch.channels_last)
         hifi_gan = hifi_gan.to(memory_format=torch.channels_last)
