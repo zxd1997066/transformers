@@ -452,6 +452,7 @@ def main():
             data_args.dataset_config_name,
             split=data_args.eval_split_name,
             use_auth_token=data_args.use_auth_token,
+            trust_remote_code=True,
         )
         raw_datasets["train"] = raw_datasets["eval"]
 
