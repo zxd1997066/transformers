@@ -552,6 +552,7 @@ class TrainingArguments:
     compile: bool = field(default=False, metadata={"help": "compile."})
     device_oob: str = field(default='cpu', metadata={"help": "device. cpu/cuda"})
     backend: str = field(default='inductor', metadata={"help": "backend."})
+    triton_cpu: bool = field(default=False, metadata={"help": "triton_cpu."})
     ipex: bool = field(default=False, metadata={"help": "ipex."})
     jit: bool = field(default=False, metadata={"help": "jit."})
     do_train: bool = field(default=False, metadata={"help": "Whether to run training."})
