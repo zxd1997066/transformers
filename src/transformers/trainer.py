@@ -1327,6 +1327,10 @@ class Trainer:
         return model
 
     def _wrap_model(self, model, training=True, dataloader=None):
+        if self.args.triton_cpu:
+            print("run with triton cpu backend")
+            import torch._inductor.config
+            torch._inductor.config.cpu_backend="triton"
         model = model.to(self.args.device_oob)
         if self.args.compile:
             if self.args.backend == "cudagraphs":
