@@ -1327,6 +1327,7 @@ class Trainer:
         return model
 
     def _wrap_model(self, model, training=True, dataloader=None):
+        import torch
         if self.args.triton_cpu:
             print("run with triton cpu backend")
             import torch._inductor.config
