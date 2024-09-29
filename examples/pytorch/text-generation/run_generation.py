@@ -303,7 +303,7 @@ def main():
             elif args.backend == "zentorch":
                 import zentorch
                 import torch
-                model = torch.compile(model, backend=args.backend, dynamic=False)
+                model = torch.compile(model, backend=args.backend)
             else:
                 model = torch.compile(model, backend=args.backend, options={"freezing": True})
             # model.generate = torch.compile(model.generate, backend=args.backend, options={"freezing": True}, dynamic=True)
