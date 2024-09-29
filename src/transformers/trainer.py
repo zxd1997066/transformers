@@ -1336,6 +1336,8 @@ class Trainer:
         if self.args.compile:
             if self.args.backend == "cudagraphs":
                 model = torch.compile(model, backend=self.args.backend)
+            elif self.args.backend == "zentorch":
+                model = torch.compile(model, backend='zentorch')
             else:
                 model = torch.compile(model, backend=self.args.backend, options={"freezing": True})
             # model = torch.compile(model, backend=self.args.backend, options={"freezing": True}, dynamic=True)
