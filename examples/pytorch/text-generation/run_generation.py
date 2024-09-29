@@ -300,8 +300,12 @@ def main():
         if args.compile:
             if args.backend == "cudagraphs":
                 model.generate = torch.compile(model.generate, backend=args.backend)
+            elif args.backend == "zentorch":
+                import zentorch
+                import torch
+                model = torch.compile(model, backend=args.backend, dynamic=False)
             else:
-                model.generate = torch.compile(model.generate, backend=args.backend, options={"freezing": True})
+                model = torch.compile(model, backend=args.backend, options={"freezing": True})
             # model.generate = torch.compile(model.generate, backend=args.backend, options={"freezing": True}, dynamic=True)
         if args.precision == "bfloat16":
             print("---- Use bfloat16 AMP")
