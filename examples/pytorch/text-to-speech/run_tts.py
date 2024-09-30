@@ -22,10 +22,10 @@ def test(args, tacotron2, hifi_gan):
     if args.compile:
         if args.backend == "cudagraphs":
             tacotron2.encode_text = torch.compile(tacotron2.encode_text, backend=args.backend)
-        elif args.backend == "zentorch":
-            import zentorch
-            import torch
-            tacotron2.encode_text = torch.compile(tacotron2.encode_text, backend=args.backend)
+        # elif args.backend == "zentorch":
+        #     import zentorch
+        #     import torch
+        #     tacotron2.encode_text = torch.compile(tacotron2.encode_text, backend=args.backend)
         else:
             tacotron2.encode_text = torch.compile(tacotron2.encode_text, backend=args.backend, options={"freezing": True})
     if args.profile:
