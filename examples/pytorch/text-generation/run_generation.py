@@ -307,6 +307,7 @@ def main():
             else:
                 model = torch.compile(model, backend=args.backend, options={"freezing": True})
             # model.generate = torch.compile(model.generate, backend=args.backend, options={"freezing": True}, dynamic=True)
+        import torch
         if args.precision == "bfloat16":
             print("---- Use bfloat16 AMP")
             with torch.autocast(enabled=True, device_type=args.device_oob, dtype=torch.bfloat16):
