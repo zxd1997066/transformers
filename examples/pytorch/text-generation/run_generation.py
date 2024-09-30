@@ -305,7 +305,7 @@ def main():
             #     import torch
             #     model = torch.compile(model, backend=args.backend)
             else:
-                model = torch.compile(model, backend=args.backend, options={"freezing": True})
+                model.generate = torch.compile(model.generate, backend=args.backend, options={"freezing": True})
             # model.generate = torch.compile(model.generate, backend=args.backend, options={"freezing": True}, dynamic=True)
         if args.precision == "bfloat16":
             print("---- Use bfloat16 AMP")
